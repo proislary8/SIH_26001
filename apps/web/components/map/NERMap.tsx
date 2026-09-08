@@ -8,7 +8,7 @@ import type { FeatureCollection } from "geojson";
 // ArcGIS — lazy loaded to avoid SSR issues and keep initial bundle small
 const ArcGISNERMap = lazy(() => import("@/components/map/ArcGISNERMap"));
 
-// â”€â”€â”€ NE State data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- NE State data ----------------------------------------------------------
 const NE_STATES = [
   { name: "Assam", code: "AS", lng: 92.94, lat: 26.20, zoom: 7, pop: "35.6M", districts: 35, color: "#f97316" },
   { name: "Arunachal Pradesh", code: "AR", lng: 94.73, lat: 28.21, zoom: 6, pop: "1.6M", districts: 25, color: "#a855f7" },
@@ -20,7 +20,7 @@ const NE_STATES = [
   { name: "Sikkim", code: "SK", lng: 88.51, lat: 27.53, zoom: 9, pop: "690K", districts: 6, color: "#14b8a6" },
 ];
 
-// â”€â”€â”€ State boundary polygons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- State boundary polygons ------------------------------------------------
 const STATE_GEOJSON: FeatureCollection = {
   type: "FeatureCollection",
   features: [
@@ -101,16 +101,16 @@ const STATE_GEOJSON: FeatureCollection = {
   ],
 };
 
-// â”€â”€â”€ Zone Types with time-based categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Zone Types with time-based categories ----------------------------------
 const ZONE_TYPES = {
-  ACTIVE_24H:   { label: "Active Landslide (Last 24h)", color: "#dc2626", opacity: 0.80, icon: "ðŸ”´", pulse: true,  severity: 5 },
-  ACTIVE_72H:   { label: "Recent Landslide (24â€“72h)",  color: "#ea580c", opacity: 0.70, icon: "ðŸŸ ", pulse: true,  severity: 4 },
-  HIGH_RISK:    { label: "High Risk (>70% probability)", color: "#d97706", opacity: 0.60, icon: "ðŸŸ¡", pulse: false, severity: 3 },
-  MEDIUM_RISK:  { label: "Medium Risk (40â€“70%)",        color: "#ca8a04", opacity: 0.50, icon: "ðŸŸ¡", pulse: false, severity: 2 },
-  LOW_RISK:     { label: "Low Risk (<40%)",             color: "#16a34a", opacity: 0.35, icon: "ðŸŸ¢", pulse: false, severity: 1 },
-  SAFE_ZONE:    { label: "Safe / Evacuation Zone",      color: "#0891b2", opacity: 0.35, icon: "ðŸ”µ", pulse: false, severity: 0 },
-  FLOOD_RISK:   { label: "Flood Risk",                  color: "#1d4ed8", opacity: 0.55, icon: "ðŸ’§", pulse: false, severity: 3 },
-  BUFFER_ZONE:  { label: "Buffer / Monitoring Zone",    color: "#7c3aed", opacity: 0.30, icon: "ðŸŸ£", pulse: false, severity: 1 },
+  ACTIVE_24H:   { label: "Active Landslide (Last 24h)", color: "#dc2626", opacity: 0.80, icon: "🔴", pulse: true,  severity: 5 },
+  ACTIVE_72H:   { label: "Recent Landslide (24–72h)",  color: "#ea580c", opacity: 0.70, icon: "🟧", pulse: true,  severity: 4 },
+  HIGH_RISK:    { label: "High Risk (>70% probability)", color: "#d97706", opacity: 0.60, icon: "🟨", pulse: false, severity: 3 },
+  MEDIUM_RISK:  { label: "Medium Risk (40–70%)",        color: "#ca8a04", opacity: 0.50, icon: "🟨", pulse: false, severity: 2 },
+  LOW_RISK:     { label: "Low Risk (<40%)",             color: "#16a34a", opacity: 0.35, icon: "🟩", pulse: false, severity: 1 },
+  SAFE_ZONE:    { label: "Safe / Evacuation Zone",      color: "#0891b2", opacity: 0.35, icon: "🟦", pulse: false, severity: 0 },
+  FLOOD_RISK:   { label: "Flood Risk",                  color: "#1d4ed8", opacity: 0.55, icon: "💧", pulse: false, severity: 3 },
+  BUFFER_ZONE:  { label: "Buffer / Monitoring Zone",    color: "#7c3aed", opacity: 0.30, icon: "🟪", pulse: false, severity: 1 },
 };
 
 type ZoneKey = keyof typeof ZONE_TYPES;
@@ -179,7 +179,7 @@ const ZONE_GEOJSON: FeatureCollection = {
   })),
 };
 
-// â”€â”€â”€ Rescue Teams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Rescue Teams ----------------------------------------------------------
 const RESCUE_TEAMS = [
   { id: "rt1", name: "NDRF 1st Bn", type: "NDRF", state: "AS", city: "Guwahati", lng: 91.74, lat: 26.14, phone: "01123438252", capacity: 45, status: "standby" },
   { id: "rt2", name: "SDRF Assam", type: "SDRF", state: "AS", city: "Dispur", lng: 91.81, lat: 26.14, phone: "0361-2237219", capacity: 30, status: "standby" },
@@ -191,7 +191,7 @@ const RESCUE_TEAMS = [
   { id: "rt8", name: "SDRF Nagaland", type: "SDRF", state: "NL", city: "Kohima", lng: 94.10, lat: 25.67, phone: "0370-2270010", capacity: 22, status: "standby" },
 ];
 
-// â”€â”€â”€ Safe Shelters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Safe Shelters ---------------------------------------------------------
 const SHELTERS = [
   { id: "s1", name: "Govt HS Guwahati", city: "Guwahati", state: "AS", lng: 91.73, lat: 26.17, capacity: 500, occupancy: 0, type: "school" },
   { id: "s2", name: "Cotton University", city: "Guwahati", state: "AS", lng: 91.73, lat: 26.16, capacity: 800, occupancy: 120, type: "university" },
@@ -205,17 +205,17 @@ const SHELTERS = [
   { id: "s10", name: "Agartala Town Hall", city: "Agartala", state: "TR", lng: 91.28, lat: 23.83, capacity: 450, occupancy: 0, type: "community" },
 ];
 
-// â”€â”€â”€ Helplines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Helplines -------------------------------------------------------------
 const HELPLINES = [
-  { name: "NDMA", number: "1078", icon: "ðŸ†˜" },
-  { name: "NDRF", number: "011-23438252", icon: "ðŸš‘" },
-  { name: "Police", number: "100", icon: "ðŸš”" },
+  { name: "NDMA", number: "1078", icon: "🆘" },
+  { name: "NDRF", number: "011-23438252", icon: "🚑" },
+  { name: "Police", number: "100", icon: "🚔" },
   { name: "Ambulance", number: "108", icon: "ðŸ¥" },
-  { name: "Fire", number: "101", icon: "ðŸš’" },
-  { name: "Flood Control", number: "1800-345-3612", icon: "ðŸ’§" },
+  { name: "Fire", number: "101", icon: "🚒" },
+  { name: "Flood Control", number: "1800-345-3612", icon: "💧" },
 ];
 
-// â”€â”€â”€ Basemaps (using reliable free tiles) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Basemaps (using reliable free tiles) ----------------------------------
 function osmStyle(): maplibregl.StyleSpecification {
   return {
     version: 8,
@@ -292,7 +292,7 @@ const BASEMAPS = [
   { id: "topo", label: "Topo", style: topoStyle() },
 ];
 
-// â”€â”€â”€ Utility: Haversine distance (km) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Utility: Haversine distance (km) --------------------------------------
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -301,7 +301,7 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// â”€â”€â”€ Utility: Point-in-polygon (ray casting) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Utility: Point-in-polygon (ray casting) --------------------------------
 function pointInPolygon(lng: number, lat: number, coords: [number, number][]): boolean {
   let inside = false;
   for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
@@ -313,7 +313,7 @@ function pointInPolygon(lng: number, lat: number, coords: [number, number][]): b
   return inside;
 }
 
-// â”€â”€â”€ Format timestamp helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Format timestamp helper ------------------------------------------------
 function formatTimeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const h = Math.floor(diffMs / 3600000);
@@ -322,7 +322,7 @@ function formatTimeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Component --------------------------------------------------------------
 export default function NERMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -351,7 +351,7 @@ export default function NERMap() {
   const [showLegend, setShowLegend] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
 
-  // â”€â”€ Online/offline detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Online/offline detection -----------------------------------------------
   useEffect(() => {
     const handleOffline = () => setIsOffline(true);
     const handleOnline = () => setIsOffline(false);
@@ -361,7 +361,7 @@ export default function NERMap() {
     return () => { window.removeEventListener("offline", handleOffline); window.removeEventListener("online", handleOnline); };
   }, []);
 
-  // â”€â”€ Init Map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Init Map --------------------------------------------------------------
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -423,14 +423,14 @@ export default function NERMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // â”€â”€ Add markers when map ready â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Add markers when map ready --------------------------------------------
   useEffect(() => {
     if (!ready || !mapRef.current) return;
     rebuildMarkers(mapRef.current, showTeams, showShelters, setSelectedInfo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, showTeams, showShelters]);
 
-  // â”€â”€ Zone visibility toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Zone visibility toggle ------------------------------------------------
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -446,7 +446,7 @@ export default function NERMap() {
     } catch { }
   }, [visibleZones, ready]);
 
-  // â”€â”€ Geolocation & zone detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Geolocation & zone detection ------------------------------------------
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -479,9 +479,9 @@ export default function NERMap() {
             .setLngLat([lng, lat])
             .setPopup(new maplibregl.Popup({ offset: 20 }).setHTML(`
               <div style="background:#0d1117;color:#e2e8f0;padding:10px;border-radius:8px;font-family:system-ui;min-width:140px">
-                <div style="font-weight:700;margin-bottom:4px">ðŸ“ Your Location</div>
+                <div style="font-weight:700;margin-bottom:4px">📍 Your Location</div>
                 <div style="font-size:10px;color:#64748b">${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
-                ${inZone ? `<div style="margin-top:6px;padding:4px 8px;border-radius:4px;background:${ZONE_TYPES[inZone.type].color}33;color:${ZONE_TYPES[inZone.type].color};font-size:10px;font-weight:700">âš ï¸ You are in ${ZONE_TYPES[inZone.type].label}</div>` : `<div style="margin-top:6px;color:#22c55e;font-size:10px">âœ… No active hazard</div>`}
+                ${inZone ? `<div style="margin-top:6px;padding:4px 8px;border-radius:4px;background:${ZONE_TYPES[inZone.type].color}33;color:${ZONE_TYPES[inZone.type].color};font-size:10px;font-weight:700">⚠️ You are in ${ZONE_TYPES[inZone.type].label}</div>` : `<div style="margin-top:6px;color:#22c55e;font-size:10px">✅ No active hazard</div>`}
               </div>
             `))
             .addTo(map);
@@ -499,7 +499,7 @@ export default function NERMap() {
     );
   }, []);
 
-  // â”€â”€ Auto SMS trigger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Auto SMS trigger ------------------------------------------------------
   const triggerAutoSMS = async (zone: Zone, lat: number, lng: number) => {
     try {
       // Try online first
@@ -531,7 +531,7 @@ export default function NERMap() {
     }
   };
 
-  // â”€â”€ SOS Broadcast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- SOS Broadcast ---------------------------------------------------------
   const sendSOS = async () => {
     setSosLoading(true);
     try {
@@ -615,27 +615,43 @@ export default function NERMap() {
     });
   };
 
-  // â”€â”€â”€ Derived: active alert count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Derived: active alert count ----------------------------------------
   const activeAlerts = ZONES.filter(z => z.type === "ACTIVE_24H" || z.type === "ACTIVE_72H").length;
 
   return (
     <div className="relative w-full h-screen bg-[#0a0f1a] overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      {/* â•â• MAP CANVAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* == MAP CANVAS ====================================================== */}
+      {/* MapLibre canvas — hidden (but kept mounted) when ArcGIS is active so map state is preserved */}
+      <div ref={containerRef} className="absolute inset-0" style={{ visibility: mapEngine === "arcgis" ? "hidden" : "visible", pointerEvents: mapEngine === "arcgis" ? "none" : "auto" }} />
 
-      {/* â•â• OFFLINE BANNER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* == ARCGIS MAP ====================================================== */}
+      {mapEngine === "arcgis" && (
+        <div className="absolute inset-0" style={{ zIndex: 1 }}>
+          <Suspense fallback={
+            <div style={{ position: "absolute", inset: 0, background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", border: "2px solid rgba(0,121,193,0.3)", borderTopColor: "#0079C1", animation: "spin 1s linear infinite" }} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>Loading ArcGIS Map…</div>
+              <div style={{ fontSize: 11, color: "#475569" }}>Esri · NER Landslide Intelligence</div>
+            </div>
+          }>
+            <ArcGISNERMap />
+          </Suspense>
+        </div>
+      )}
+
+      {/* = =  OFFLINE BANNER = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {isOffline && (
         <div style={{
           position: "absolute", top: 52, inset: "auto 0 auto 0", zIndex: 30,
           background: "rgba(234,179,8,0.95)", color: "#1a1000", padding: "6px 16px",
           fontSize: 11, fontWeight: 700, textAlign: "center", backdropFilter: "blur(10px)",
         }}>
-          ðŸ“µ OFFLINE MODE â€” Map tiles cached Â· SMS alerts queued for reconnection
+          📍µ OFFLINE MODE — Map tiles cached · SMS alerts queued for reconnection
         </div>
       )}
 
-      {/* â•â• USER IN DANGER ZONE ALERT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  USER IN DANGER ZONE ALERT = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {userZone && ZONE_TYPES[userZone.type].severity >= 4 && (
         <div style={{
           position: "absolute", top: isOffline ? 78 : 60, left: "50%", transform: "translateX(-50%)",
@@ -644,15 +660,15 @@ export default function NERMap() {
           boxShadow: "0 0 30px rgba(220,38,38,0.6)", animation: "dangerPulse 1s ease-in-out infinite",
           display: "flex", alignItems: "center", gap: 10,
         }}>
-          ðŸš¨ DANGER: You are in {userZone.name}
+          🚨 DANGER: You are in {userZone.name}
           <button onClick={sendSOS} disabled={sosLoading || sosSent}
             style={{ background: "white", color: "#dc2626", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>
-            {sosSent ? "âœ… SOS Sent!" : sosLoading ? "Sendingâ€¦" : "Send SOS"}
+            {sosSent ? "✅ SOS Sent!" : sosLoading ? "Sending…" : "Send SOS"}
           </button>
         </div>
       )}
 
-      {/* â•â• TOP BAR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  TOP BAR = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, height: 52,
         display: "flex", alignItems: "center", padding: "0 16px", gap: 12,
@@ -660,7 +676,7 @@ export default function NERMap() {
         borderBottom: "1px solid rgba(255,255,255,0.07)",
       }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <span style={{ fontSize: 20 }}>ðŸ”ï¸</span>
+          <span style={{ fontSize: 20 }}>ðŸ ”ï¸ </span>
           <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em", color: "#f8fafc" }}>
             LandGuard<span style={{ color: "#ffffff" }}>NER</span>
           </span>
@@ -669,7 +685,7 @@ export default function NERMap() {
         <span style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0" }}>NE India Live Map</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#475569" }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
-          {activeAlerts} Active Alerts Â· 8 States Â· {ZONES.length} Zones
+          {activeAlerts} Active Alerts · 8 States · {ZONES.length} Zones
         </div>
         <div style={{ flex: 1 }} />
 
@@ -706,7 +722,7 @@ export default function NERMap() {
           border: `1px solid ${is3D ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.08)"}`,
           background: is3D ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.04)",
           color: is3D ? "#c084fc" : "#64748b", transition: "all 0.15s",
-        }}>{is3D ? "â–²" : "â–³"} 3D Terrain</button>
+        }}>{is3D ? "▲" : "△"} 3D Terrain</button>
 
         {/* Locate me */}
         <button onClick={requestLocation} title="Find my location" style={{
@@ -715,16 +731,16 @@ export default function NERMap() {
           border: `1px solid ${userLocation ? "rgba(34,197,94,0.4)" : "rgba(255,255,255,0.08)"}`,
           background: userLocation ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.04)",
           color: userLocation ? "#4ade80" : "#64748b", transition: "all 0.15s",
-        }}>ðŸ“ {userLocation ? "Located" : "Locate Me"}</button>
+        }}>📍  {userLocation ? "Located" : "Locate Me"}</button>
 
         <Link href="/dashboard" style={{
           display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 10,
           fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.08)",
           border: "1px solid rgba(255,255,255,0.15)", color: "#ffffff", textDecoration: "none",
-        }}>Dashboard â†’</Link>
+        }}>Dashboard →</Link>
       </div>
 
-      {/* â•â• LEFT SIDEBAR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  LEFT SIDEBAR = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       <div style={{
         position: "absolute", left: 0, top: 52, bottom: 0, zIndex: 10,
         width: sidebarOpen ? 248 : 40,
@@ -737,7 +753,7 @@ export default function NERMap() {
           position: "absolute", right: -14, top: 10, width: 28, height: 28, borderRadius: "50%",
           background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
           color: "#64748b", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 5,
-        }}>{sidebarOpen ? "â—€" : "â–¶"}</button>
+        }}>{sidebarOpen ? "◀" : "▶"}</button>
 
         {sidebarOpen && (
           <>
@@ -750,7 +766,7 @@ export default function NERMap() {
                   borderBottom: activeTab === tab ? "2px solid #ffffff" : "2px solid transparent",
                   background: "transparent", color: activeTab === tab ? "#ffffff" : "#475569",
                 }}>
-                  {tab === "states" ? "ðŸ—ºï¸" : tab === "zones" ? "âš ï¸" : tab === "teams" ? "ðŸš‘" : "ðŸ "}
+                  {tab === "states" ? "🗺️ " : tab === "zones" ? "⚠️ " : tab === "teams" ? "🚑" : "ðŸ  "}
                 </button>
               ))}
             </div>
@@ -763,8 +779,8 @@ export default function NERMap() {
                   cursor: "pointer", background: "rgba(255,255,255,0.05)", border: "none",
                   borderBottom: "1px solid rgba(255,255,255,0.04)",
                 }}>
-                  <span style={{ fontSize: 16 }}>ðŸ—ºï¸</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#ffffff" }}>All NER â€” Full overview</span>
+                  <span style={{ fontSize: 16 }}>🗺️ </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#ffffff" }}>All NER — Full overview</span>
                 </button>
                 {NE_STATES.map(s => (
                   <button key={s.code} onClick={() => { flyTo(s.lng, s.lat, s.zoom); setSelectedInfo({ kind: "state", ...s }); }}
@@ -781,7 +797,7 @@ export default function NERMap() {
                     </div>
                     <div style={{ textAlign: "left" }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0" }}>{s.name}</div>
-                      <div style={{ fontSize: 9, color: "#475569" }}>{s.districts} districts Â· {s.pop}</div>
+                      <div style={{ fontSize: 9, color: "#475569" }}>{s.districts} districts · {s.pop}</div>
                     </div>
                   </button>
                 ))}
@@ -792,7 +808,7 @@ export default function NERMap() {
             {activeTab === "zones" && (
               <div style={{ overflowY: "auto", flex: 1, padding: "8px 0" }}>
                 <div style={{ padding: "4px 12px 8px", fontSize: 9, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Zone Types â€” Toggle Visibility
+                  Zone Types — Toggle Visibility
                 </div>
                 {(Object.entries(ZONE_TYPES) as [ZoneKey, typeof ZONE_TYPES[ZoneKey]][]).map(([key, z]) => {
                   const active = visibleZones.has(key);
@@ -866,12 +882,12 @@ export default function NERMap() {
                         border: `1px solid ${t.type === "NDRF" ? "rgba(239,68,68,0.3)" : t.type === "Army" ? "rgba(234,179,8,0.3)" : "rgba(59,130,246,0.3)"}`,
                         fontSize: 12,
                       }}>
-                        {t.type === "NDRF" ? "ðŸ”´" : t.type === "Army" ? "ðŸŸ¡" : "ðŸ”µ"}
+                        {t.type === "NDRF" ? "🔴" : t.type === "Army" ? "🟨" : "🟦"}
                       </div>
                       <div style={{ textAlign: "left", flex: 1 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: "#e2e8f0" }}>{t.name}</div>
-                        <div style={{ fontSize: 9, color: "#475569" }}>{t.city}, {t.state} Â· {t.capacity} pers.</div>
-                        <div style={{ fontSize: 9, color: t.status === "deployed" ? "#f97316" : "#22c55e", marginTop: 2 }}>â— {t.status.toUpperCase()}</div>
+                        <div style={{ fontSize: 9, color: "#475569" }}>{t.city}, {t.state} · {t.capacity} pers.</div>
+                        <div style={{ fontSize: 9, color: t.status === "deployed" ? "#f97316" : "#22c55e", marginTop: 2 }}>● {t.status.toUpperCase()}</div>
                       </div>
                     </button>
                     {/* Click-to-call */}
@@ -880,7 +896,7 @@ export default function NERMap() {
                       padding: "5px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, textDecoration: "none",
                       background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#4ade80",
                     }}>
-                      ðŸ“ž Call: {t.phone}
+                      📍ž Call: {t.phone}
                     </a>
                   </div>
                 ))}
@@ -900,7 +916,7 @@ export default function NERMap() {
                 </div>
                 {nearestShelters.length > 0 && (
                   <div style={{ padding: "6px 12px 4px", fontSize: 9, fontWeight: 700, color: "#22c55e", textTransform: "uppercase" }}>
-                    ðŸ“ Nearest to you
+                    📍  Nearest to you
                   </div>
                 )}
                 {SHELTERS.map(s => {
@@ -918,12 +934,12 @@ export default function NERMap() {
                         width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                         background: nearestEntry ? "rgba(34,197,94,0.2)" : "rgba(20,184,166,0.15)",
                         border: `1px solid ${nearestEntry ? "rgba(34,197,94,0.4)" : "rgba(20,184,166,0.3)"}`, fontSize: 12,
-                      }}>ðŸ </div>
+                      }}>ðŸ  </div>
                       <div style={{ textAlign: "left", flex: 1 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: "#e2e8f0" }}>{s.name}</div>
                         <div style={{ fontSize: 9, color: "#475569" }}>
-                          {s.city} Â· Cap: {s.capacity.toLocaleString()}
-                          {nearestEntry && <span style={{ color: "#4ade80", marginLeft: 6 }}>Â· {nearestEntry.distance.toFixed(1)} km</span>}
+                          {s.city} · Cap: {s.capacity.toLocaleString()}
+                          {nearestEntry && <span style={{ color: "#4ade80", marginLeft: 6 }}>· {nearestEntry.distance.toFixed(1)} km</span>}
                         </div>
                         <div style={{ marginTop: 4, height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
                           <div style={{ height: "100%", background: pct > 80 ? "#ef4444" : pct > 50 ? "#f97316" : "#22c55e", width: `${pct}%`, borderRadius: 2 }} />
@@ -939,7 +955,7 @@ export default function NERMap() {
         )}
       </div>
 
-      {/* â•â• ZONE LEGEND â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  ZONE LEGEND = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {showLegend && (
         <div style={{
           position: "absolute", left: sidebarOpen ? 260 : 52, bottom: 48, zIndex: 10,
@@ -952,7 +968,7 @@ export default function NERMap() {
             <span style={{ fontSize: 9, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Zone Legend
             </span>
-            <button onClick={() => setShowLegend(false)} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 13 }}>Ã—</button>
+            <button onClick={() => setShowLegend(false)} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 13 }}>×</button>
           </div>
           {(Object.entries(ZONE_TYPES) as [ZoneKey, typeof ZONE_TYPES[ZoneKey]][]).map(([key, z]) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
@@ -978,11 +994,11 @@ export default function NERMap() {
           color: "#64748b", fontSize: 10, fontWeight: 700, padding: "5px 10px", cursor: "pointer",
           transition: "left 0.25s ease",
         }}>
-          ðŸ—’ï¸ Legend
+          ðŸ—’ï¸  Legend
         </button>
       )}
 
-      {/* â•â• SELECTED INFO PANEL â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  SELECTED INFO PANEL = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {selectedInfo && (
         <div style={{
           position: "absolute", bottom: 56, right: 12, zIndex: 15,
@@ -999,7 +1015,7 @@ export default function NERMap() {
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: "#f8fafc", marginTop: 2 }}>{selectedInfo.name}</div>
               </div>
-              <button onClick={() => setSelectedInfo(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 18, lineHeight: 1 }}>Ã—</button>
+              <button onClick={() => setSelectedInfo(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
 
             {selectedInfo.kind === "state" && (
@@ -1053,14 +1069,14 @@ export default function NERMap() {
                       border: `1px solid ${sosSent ? "rgba(34,197,94,0.4)" : "rgba(220,38,38,0.4)"}`,
                       color: sosSent ? "#4ade80" : "#f87171",
                     }}>
-                      {sosSent ? "âœ… SOS Sent" : "ðŸš¨ Send SOS"}
+                      {sosSent ? "✅ SOS Sent" : "🚨 Send SOS"}
                     </button>
                     <a href={`https://maps.google.com/?q=${selectedInfo.state}`} target="_blank" rel="noreferrer" style={{
                       flex: 1, padding: "7px", borderRadius: 8, fontSize: 10, fontWeight: 800,
                       background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)",
                       color: "#60a5fa", textDecoration: "none", textAlign: "center",
                     }}>
-                      ðŸ—ºï¸ Navigate
+                      🗺️  Navigate
                     </a>
                   </div>
                 )}
@@ -1070,7 +1086,7 @@ export default function NERMap() {
         </div>
       )}
 
-      {/* â•â• NEAREST SHELTERS PANEL â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  NEAREST SHELTERS PANEL = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {nearestShelters.length > 0 && (
         <div style={{
           position: "absolute", top: 60, right: 12, zIndex: 15,
@@ -1081,7 +1097,7 @@ export default function NERMap() {
           <div style={{ height: 3, background: "linear-gradient(90deg, #22c55e, #0891b2)" }} />
           <div style={{ padding: "10px 14px" }}>
             <div style={{ fontSize: 9, fontWeight: 800, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-              ðŸ  Nearest Safe Shelters
+              ðŸ   Nearest Safe Shelters
             </div>
             {nearestShelters.map((s, i) => (
               <div key={s.id} style={{ marginBottom: i < nearestShelters.length - 1 ? 8 : 0 }}>
@@ -1096,7 +1112,7 @@ export default function NERMap() {
                   }}>{i + 1}</div>
                   <div style={{ textAlign: "left", flex: 1 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: "#e2e8f0" }}>{s.name}</div>
-                    <div style={{ fontSize: 9, color: "#475569" }}>{s.distance.toFixed(1)} km Â· {(s.capacity - s.occupancy).toLocaleString()} free</div>
+                    <div style={{ fontSize: 9, color: "#475569" }}>{s.distance.toFixed(1)} km · {(s.capacity - s.occupancy).toLocaleString()} free</div>
                   </div>
                 </button>
                 <a href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}`}
@@ -1106,7 +1122,7 @@ export default function NERMap() {
                     background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)",
                     color: "#60a5fa", textDecoration: "none", textAlign: "center",
                   }}>
-                  Navigate â†’
+                  Navigate →
                 </a>
               </div>
             ))}
@@ -1114,7 +1130,7 @@ export default function NERMap() {
         </div>
       )}
 
-      {/* â•â• ZOOM BADGE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  ZOOM BADGE = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       <div style={{
         position: "absolute", top: 60, right: nearestShelters.length > 0 ? 244 : 8, zIndex: 10,
         background: "rgba(0,0,0,0.85)", border: "1px solid rgba(255,255,255,0.06)",
@@ -1124,7 +1140,7 @@ export default function NERMap() {
         z{zoom.toFixed(1)}
       </div>
 
-      {/* â•â• HELPLINE BAR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* = =  HELPLINE BAR = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       <div style={{
         position: "absolute", bottom: 0, left: sidebarOpen ? 248 : 40, right: 0, zIndex: 20,
         background: "rgba(0,0,0,0.95)", backdropFilter: "blur(16px)",
@@ -1133,7 +1149,7 @@ export default function NERMap() {
         transition: "left 0.25s ease",
       }}>
         <span style={{ fontSize: 9, fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0, marginRight: 4 }}>
-          ðŸ†˜ Emergency Helplines:
+          🆘 Emergency Helplines:
         </span>
         {HELPLINES.map(h => (
           <a key={h.name} href={`tel:${h.number.replace(/-/g, "")}`}
@@ -1153,31 +1169,31 @@ export default function NERMap() {
         ))}
       </div>
 
-      {/* â•â• LOADING â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-      {!ready && (
+      {/* == LOADING (MapLibre only) =========================================== */}
+      {!ready && mapEngine === "maplibre" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000000" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             <div style={{ position: "relative", width: 64, height: 64 }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.10)", borderTopcolor: "#ffffff", animation: "spin 1s linear infinite" }} />
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.10)", borderTopColor: "#ffffff", animation: "spin 1s linear infinite" }} />
               <div style={{ position: "absolute", inset: 8, borderRadius: "50%", border: "2px solid rgba(168,85,247,0.2)", borderBottomColor: "#a855f7", animation: "spin 1.5s linear infinite reverse" }} />
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>ðŸ”ï¸</div>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🏔️</div>
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc" }}>Loading NER Risk Map</div>
-              <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>CARTO Dark Â· OSM Â· {ZONES.length} Risk Zones</div>
+              <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>CARTO Dark · OSM · {ZONES.length} Risk Zones</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* â•â• LOCATION DENIED NOTICE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* == LOCATION DENIED NOTICE ========================================== */}
       {locationDenied && (
         <div style={{
           position: "absolute", bottom: 60, right: 12, zIndex: 15,
           background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)",
           borderRadius: 10, padding: "8px 14px", fontSize: 10, color: "#fbbf24", maxWidth: 200,
         }}>
-          âš ï¸ Location access denied. Enable location for nearest shelter & auto-alerts.
+          ⚠️ Location access denied. Enable location for nearest shelter & auto-alerts.
         </div>
       )}
 
@@ -1198,7 +1214,7 @@ export default function NERMap() {
   );
 }
 
-// â”€â”€â”€ Map layer helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Map layer helpers ------------------------------------------------------
 function addStateLayers(map: maplibregl.Map) {
   if (!map.getSource("ne-states")) {
     map.addSource("ne-states", { type: "geojson", data: STATE_GEOJSON });
@@ -1257,7 +1273,7 @@ function rebuildMarkers(
         font-size:15px; box-shadow:0 4px 16px rgba(0,0,0,0.5);
         transition:transform 0.15s;
       `;
-      el.innerHTML = t.type === "NDRF" ? "ðŸš‘" : t.type === "Army" ? "âš”ï¸" : "ðŸ›¡ï¸";
+      el.innerHTML = t.type === "NDRF" ? "🚑" : t.type === "Army" ? "⚔️" : "🛡️";
       el.title = t.name;
       el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.25)"; });
       el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
@@ -1267,15 +1283,15 @@ function rebuildMarkers(
         .setPopup(new maplibregl.Popup({ offset: 20, closeButton: true, maxWidth: "240px" }).setHTML(`
           <div style="background:#0d1117;color:#e2e8f0;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);font-family:system-ui">
             <div style="font-weight:800;font-size:13px;margin-bottom:8px">${t.name}</div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:2px">ðŸ“ ${t.city}, ${t.state}</div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:2px">ðŸ‘¥ ${t.capacity} personnel</div>
-            <div style="font-size:10px;color:${t.status === "deployed" ? "#f97316" : "#22c55e"};margin-bottom:10px">â— ${t.status.toUpperCase()}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:2px">📍  ${t.city}, ${t.state}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:2px">👥 ${t.capacity} personnel</div>
+            <div style="font-size:10px;color:${t.status === "deployed" ? "#f97316" : "#22c55e"};margin-bottom:10px">● ${t.status.toUpperCase()}</div>
             <a href="tel:${t.phone}" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;font-size:11px;font-weight:800;text-decoration:none;margin-bottom:6px">
-              ðŸ“ž Call: ${t.phone}
+              📞 Call: ${t.phone}
             </a>
             <button onclick="(function(){const body=JSON.stringify({team:'${t.id}',name:'${t.name}',phone:'${t.phone}'});fetch('/api/rescue/notify',{method:'POST',headers:{'Content-Type':'application/json'},body}).catch(()=>{});document.querySelector('.maplibregl-popup-close-button')?.click()})()" 
               style="width:100%;padding:7px 10px;border-radius:8px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);color:#f87171;font-size:11px;font-weight:800;cursor:pointer">
-              ðŸš¨ Notify This Team
+              🚨 Notify This Team
             </button>
           </div>
         `))
@@ -1296,7 +1312,7 @@ function rebuildMarkers(
         transition:transform 0.15s;
       `;
       el.innerHTML = "ðŸ ";
-      el.title = `${s.name} â€” ${avail} spots`;
+      el.title = `${s.name} — ${avail} spots`;
       el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.2)"; });
       el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
 
@@ -1305,15 +1321,15 @@ function rebuildMarkers(
         .setPopup(new maplibregl.Popup({ offset: 18, closeButton: true, maxWidth: "220px" }).setHTML(`
           <div style="background:#0d1117;color:#e2e8f0;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);font-family:system-ui">
             <div style="font-weight:800;font-size:12px;margin-bottom:8px">ðŸ  ${s.name}</div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:2px">ðŸ“ ${s.city}, ${s.state}</div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:8px">ðŸ¥ ${s.type} Â· Cap: ${s.capacity.toLocaleString()}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:2px">📍 ${s.city}, ${s.state}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:8px">ðŸ¥ ${s.type} · Cap: ${s.capacity.toLocaleString()}</div>
             <div style="height:5px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-bottom:4px">
               <div style="height:100%;background:${pct > 80 ? "#ef4444" : pct > 50 ? "#f97316" : "#22c55e"};width:${pct}%;border-radius:4px"></div>
             </div>
             <div style="font-size:11px;font-weight:700;color:${avail > 50 ? "#22c55e" : "#f97316"};margin-bottom:10px">${avail.toLocaleString()} spots available</div>
             <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" 
               style="display:block;padding:7px;border-radius:8px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px;font-weight:800;text-decoration:none;text-align:center">
-              ðŸ—ºï¸ Get Directions
+              🗺️ Get Directions
             </a>
           </div>
         `))

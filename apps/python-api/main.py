@@ -9,7 +9,10 @@ from contextlib import asynccontextmanager
 import logging
 
 from routers import risk, weather, satellite, alerts, sensors
-from workers.celery_app import celery_app
+try:
+    from workers.celery_app import celery_app
+except ImportError:
+    celery_app = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

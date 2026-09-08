@@ -59,25 +59,29 @@ class RiskPredictor:
         if zone_id in self.zone_cache:
             return self.zone_cache[zone_id]
 
-        from db.client import supabase
-        result = supabase.table("risk_zones") \
-            .select("slope_degrees, aspect_degrees, elevation_m, ndvi_score, "
-                    "historical_events_count, land_cover") \
-            .eq("id", zone_id) \
-            .single() \
-            .execute()
+        try:
+            from db.client import supabase
+            result = supabase.table("risk_zones") \
+                .select("slope_degrees, aspect_degrees, elevation_m, ndvi_score, "
+                        "historical_events_count, land_cover") \
+                .eq("id", zone_id) \
+                .single() \
+                .execute()
 
-        if result.data:
-            features = {
-                "slope_degrees":          result.data.get("slope_degrees", 20.0),
-                "aspect_degrees":         result.data.get("aspect_degrees", 180.0),
-                "elevation_m":            result.data.get("elevation_m", 500.0),
-                "ndvi_score":             result.data.get("ndvi_score", 0.5),
-                "historical_events_count": result.data.get("historical_events_count", 0),
-                "land_cover_encoded":     self._encode_land_cover(result.data.get("land_cover", "forest")),
-            }
-            self.zone_cache[zone_id] = features
-            return features
+            if result and result.data:
+                features = {
+                    "slope_degrees":          result.data.get("slope_degrees", 20.0),
+                    "aspect_degrees":         result.data.get("aspect_degrees", 180.0),
+                    "elevation_m":            result.data.get("elevation_m", 500.0),
+                    "ndvi_score":             result.data.get("ndvi_score", 0.5),
+                    "historical_events_count": result.data.get("historical_events_count", 0),
+                    "land_cover_encoded":     self._encode_land_cover(result.data.get("land_cover", "forest")),
+                }
+                self.zone_cache[zone_id] = features
+                return features
+        except Exception as e:
+            logger.debug(f"Zone feature DB lookup failed for {zone_id}: {e}")
+
         return self._default_zone_features()
 
     def _encode_land_cover(self, cover: str) -> int:
