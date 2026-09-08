@@ -1,0 +1,38 @@
+{
+  "name": "LandGuardNER",
+  "short_name": "LandGuard",
+  "description": "AI-powered landslide early warning system for Northeast India. Real-time risk maps, SMS alerts, shelter finder, and offline access.",
+  "start_url": "/map",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#030712",
+  "theme_color": "#fb923c",
+  "lang": "en-IN",
+  "categories": ["emergency", "weather", "navigation"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Risk Map",
+      "short_name": "Map",
+      "url": "/map",
+      "description": "View live landslide risk zones across NE India",
+      "icons": [{ "src": "/favicon.ico", "sizes": "any" }]
+    },
+    {
+      "name": "Send SOS",
+      "short_name": "SOS",
+      "url": "/map?sos=true",
+      "description": "Send emergency SOS to nearest rescue teams"
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

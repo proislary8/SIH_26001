@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+venv/
+__pycache__/
+*.pyc
+
+# Next.js / Build outputs
+.next/
+dist/
+build/
+out/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE / OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

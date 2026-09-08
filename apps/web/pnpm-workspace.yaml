@@ -1,0 +1,4 @@
+allowBuilds:
+  '@vaadin/vaadin-usage-statistics': false
+  sharp: false
+  unrs-resolver: false
