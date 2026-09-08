@@ -176,7 +176,7 @@ export default function SimulatorPage() {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="sim-grid">
 
         {/* Controls Panel */}
         <div style={{ padding: "24px", borderRadius: 20, background: "rgba(15,23,42,0.8)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -364,7 +364,7 @@ export default function SimulatorPage() {
         <div style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>
           💡 How to Use This Simulator
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+        <div className="sim-howto-grid">
           {[
             { icon: "📌", text: "Select a monitored risk zone from the dropdown." },
             { icon: "🌧️", text: "Ask: \"What if 300mm of rain falls over 48 hours?\"" },

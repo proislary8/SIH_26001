@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ─── LandGuardNER — Black & White Design System ─────────────────────────── */
+/* ─── LandGuardNER — Design System ─────────────────────────────────────── */
 :root {
   --bg-primary:    #000000;
   --bg-secondary:  #0a0a0a;
@@ -13,6 +13,10 @@
   --text-muted:    #52525b;
   --accent:        #ffffff;
   --accent-hover:  #e4e4e7;
+
+  /* Spacing tokens */
+  --page-px: 24px;
+  --page-max: 1280px;
 }
 
 @theme inline {
@@ -22,50 +26,388 @@
   --font-mono: var(--font-geist-mono);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
+/* ─── Reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
+img, video { max-width: 100%; height: auto; }
+a { color: inherit; }
+button { font-family: inherit; }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: #0a0a0a; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #555; }
-
-/* ─── MapLibre popup reset ──────────────────────────────────────────────── */
-.maplibregl-popup-content {
-  background: transparent !important;
-  padding: 0 !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-.maplibregl-popup-tip { display: none !important; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #444; }
 
 /* ─── Animations ────────────────────────────────────────────────────────── */
-@keyframes spin    { to { transform: rotate(360deg); } }
-@keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-@keyframes fadeIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
-@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-@keyframes dangerPulse {
-  0%,100% { box-shadow: 0 0 20px rgba(255,255,255,0.15); }
-  50%      { box-shadow: 0 0 40px rgba(255,255,255,0.30); }
+@keyframes spin        { to { transform: rotate(360deg); } }
+@keyframes pulse       { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+@keyframes fadeIn      { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideUp     { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes shimmer     { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes float       { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+@keyframes dangerPulse { 0%,100% { box-shadow: 0 0 20px rgba(255,255,255,0.15); } 50% { box-shadow: 0 0 40px rgba(255,255,255,0.30); } }
+@keyframes locationPulse { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { box-shadow: 0 0 0 12px rgba(255,255,255,0); } 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
+@keyframes successPop  { 0% { transform:scale(0.8);opacity:0; } 100% { transform:scale(1);opacity:1; } }
+.animate-fade-in { animation: fadeIn 0.3s ease forwards; }
+
+/* ─── MapLibre popup reset ──────────────────────────────────────────────── */
+.maplibregl-popup-content { background: transparent !important; padding: 0 !important; box-shadow: none !important; border: none !important; }
+.maplibregl-popup-tip { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE LAYOUT UTILITIES
+   All pages reference these classes — mobile-first approach
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Page container ─────────────────────────────────────────────────────── */
+.page-wrap { max-width: var(--page-max); margin: 0 auto; padding: 0 var(--page-px); }
+
+/* ─── Responsive grids ──────────────────────────────────────────────────── */
+/* Hero: 1-col mobile → 2-col desktop */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  width: 100%;
 }
-@keyframes locationPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
-  70%  { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
-  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+@media (min-width: 1024px) {
+  .hero-grid { grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
 }
 
-.animate-fade-in { animation: fadeIn 0.3s ease forwards; }
+/* Hero map: hide on mobile, show on desktop */
+.hero-map-col { display: none; }
+@media (min-width: 1024px) { .hero-map-col { display: block; } }
+
+/* Stats: 2-col mobile → 4-col desktop */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+@media (min-width: 768px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Quick steps: 1-col mobile → 3-col desktop */
+.steps-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 768px) { .steps-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
+
+/* Public features: 1-col → 2-col → 4-col */
+.features-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .features-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
+
+/* Auth features: 1-col → 2-col → 3-col */
+.auth-features-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 640px) { .auth-features-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .auth-features-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; } }
+
+/* Roles: 2-col mobile → 5-col desktop */
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 768px) { .roles-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .roles-grid { grid-template-columns: repeat(5, 1fr); } }
+
+/* Risk colors: 2-col mobile → 5-col desktop */
+.risk-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 768px) { .risk-colors-grid { grid-template-columns: repeat(5, 1fr); } }
+
+/* Data sources: 1-col → 2-col → 3-col */
+.sources-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 640px) { .sources-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .sources-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; } }
+
+/* Simulator: 1-col → 2-col */
+.sim-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 900px) { .sim-grid { grid-template-columns: 1fr 1fr; gap: 20px; } }
+
+/* Shelter grid: 1-col → 2-col */
+.shelter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 768px) { .shelter-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; } }
+
+/* Emergency steps: 1-col → 2-col → 4-col */
+.emergency-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 768px) { .emergency-steps-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; } }
+
+/* Helplines grid: 1-col → 2-col → 3-col */
+.helplines-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@media (min-width: 480px) { .helplines-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 768px) { .helplines-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* Shelter action btns: stack on very small */
+.shelter-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Severity guide: 1-col → 3-col */
+.severity-guide-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 640px) { .severity-guide-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; } }
+
+/* Sim instructions: 1-col → 2-col */
+.sim-howto-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 640px) { .sim-howto-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
+
+/* ─── Navigation ─────────────────────────────────────────────────────────── */
+.nav-desktop-links { display: none; }
+@media (min-width: 768px) { .nav-desktop-links { display: flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 500; } }
+
+.nav-mobile-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+@media (min-width: 768px) { .nav-mobile-links { display: none; } }
+
+.nav-cta-text { display: none; }
+@media (min-width: 480px) { .nav-cta-text { display: inline; } }
+
+/* ─── Hero text responsive ───────────────────────────────────────────────── */
+.hero-h1 { font-size: 36px; font-weight: 900; line-height: 1.1; letter-spacing: -0.03em; margin-bottom: 20px; }
+@media (min-width: 640px) { .hero-h1 { font-size: 44px; } }
+@media (min-width: 1024px) { .hero-h1 { font-size: 52px; margin-bottom: 24px; } }
+
+.hero-p { font-size: 15px; color: #71717a; line-height: 1.7; margin-bottom: 32px; }
+@media (min-width: 1024px) { .hero-p { font-size: 17px; margin-bottom: 40px; max-width: 480px; } }
+
+.hero-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 40px; }
+@media (min-width: 1024px) { .hero-cta { gap: 12px; margin-bottom: 52px; } }
+
+/* ─── Section headings ───────────────────────────────────────────────────── */
+.section-h2 { font-size: 26px; font-weight: 900; color: white; margin-bottom: 10px; }
+@media (min-width: 768px) { .section-h2 { font-size: 32px; } }
+
+.section-py { padding: 60px 0; }
+@media (min-width: 768px) { .section-py { padding: 80px 0; } }
+@media (min-width: 1024px) { .section-py { padding: 96px 0; } }
+
+/* ─── New Here banner ────────────────────────────────────────────────────── */
+.new-here-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+@media (min-width: 768px) {
+  .new-here-banner { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+}
+
+.new-here-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ─── Alert color guide ──────────────────────────────────────────────────── */
+.alert-card-meta { display: flex; flex-direction: column; gap: 8px; }
+@media (min-width: 480px) { .alert-card-meta { flex-direction: row; align-items: center; justify-content: space-between; } }
+
+/* ─── Report form ────────────────────────────────────────────────────────── */
+.report-2col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 600px) { .report-2col { grid-template-columns: 1fr 1fr; gap: 14px; } }
+
+.sev-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+@media (min-width: 480px) { .sev-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* ─── Dashboard sidebar responsive ──────────────────────────────────────── */
+.dash-layout {
+  display: flex;
+  height: 100vh;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.dash-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  background: #080808;
+}
+/* On mobile sidebar becomes a bottom tab bar */
+@media (max-width: 767px) {
+  .dash-layout { flex-direction: column; }
+  .dash-sidebar {
+    width: 100%;
+    flex-direction: row;
+    height: auto;
+    border-right: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    order: 2;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-sidebar-logo { display: none; }
+  .dash-sidebar-main-nav {
+    flex-direction: row !important;
+    padding: 6px 8px !important;
+    gap: 4px !important;
+    flex: 1;
+    overflow-x: auto;
+  }
+  .dash-sidebar-main-nav a {
+    flex-direction: column !important;
+    gap: 3px !important;
+    padding: 8px 12px !important;
+    font-size: 9px !important;
+    min-width: 56px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .dash-sidebar-bottom,
+  .dash-sidebar-role { display: none; }
+  .dash-main { order: 1; }
+  .dash-header { padding: 0 16px !important; }
+  .dash-header-status { display: none; }
+}
+
+/* ─── Button utilities ──────────────────────────────────────────────────── */
+.btn-primary, .btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 22px; border-radius: 100px;
+  font-weight: 700; font-size: 14px; text-decoration: none;
+  transition: all 0.2s; cursor: pointer; border: none;
+}
+.btn-primary { background: white; color: black; box-shadow: 0 4px 24px rgba(255,255,255,0.1); }
+.btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+.btn-secondary { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.03); color: white; }
+.btn-secondary:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.07); }
+
+@media (max-width: 479px) {
+  .btn-primary, .btn-secondary { padding: 11px 18px; font-size: 13px; }
+}
+
+/* ─── Mobile bottom quick-nav (public pages) ─────────────────────────────── */
+.mobile-bottom-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(3,7,18,0.97);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(20px);
+  z-index: 100;
+  padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) { .mobile-bottom-nav { display: none; } }
+
+.mobile-bottom-nav a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  text-decoration: none;
+  color: #52525b;
+  font-size: 9px;
+  font-weight: 700;
+  transition: color 0.15s;
+}
+.mobile-bottom-nav a.active { color: white; }
+.mobile-bottom-nav a span.icon { font-size: 20px; line-height: 1; }
+
+/* Add bottom padding on mobile to avoid content hidden behind bottom nav */
+.has-bottom-nav { padding-bottom: 72px; }
+@media (min-width: 768px) { .has-bottom-nav { padding-bottom: 0; } }
+
+/* ─── Page top padding for fixed header ──────────────────────────────────── */
+.page-top { padding-top: 64px; }
+
+/* ─── Misc responsive tweaks ─────────────────────────────────────────────── */
+.hide-mobile { display: none !important; }
+@media (min-width: 768px) { .hide-mobile { display: revert !important; } }
+
+.show-mobile { display: block; }
+@media (min-width: 768px) { .show-mobile { display: none !important; } }
+
+/* Shelter search row */
+.shelter-search-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+@media (min-width: 600px) { .shelter-search-row { grid-template-columns: 1fr auto; } }
+
+/* Step indicator */
+.step-indicator { display: flex; align-items: center; gap: 0; margin-bottom: 32px; overflow-x: auto; }
+.step-dot { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.step-dot span.label { font-size: 10px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 479px) { .step-dot span.label { display: none; } }
+
+/* ─── Touch improvements ─────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Larger tap targets */
+  button, a { min-height: 44px; }
+  input, select, textarea { font-size: 16px !important; } /* prevents iOS zoom */
+
+  /* Card adjustments */
+  .card-hover:hover { transform: none; }
+  .card-sm-hover:hover { transform: none; }
+  .quick-step:hover { transform: none; }
+}

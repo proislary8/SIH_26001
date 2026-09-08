@@ -246,7 +246,7 @@ export default function ReportPage() {
                   <div style={{ marginBottom: 32 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 5 }}>How dangerous does it look?</div>
                     <p style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>Your best estimate is fine — authorities will verify</p>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                    <div className="sev-grid">
                       {[
                         { value: "low", label: "Minor", icon: "🟢", desc: "Small crack, slow seepage" },
                         { value: "medium", label: "Moderate", icon: "🟡", desc: "Partial road block" },
@@ -325,7 +325,7 @@ export default function ReportPage() {
                     <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.07)" }} />
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 32 }}>
+                  <div className="report-2col" style={{ marginBottom: 32 }}>
                     <div>
                       <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 8 }}>State</label>
                       <select
@@ -409,7 +409,7 @@ export default function ReportPage() {
                   </div>
 
                   {/* Reporter info */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
+                  <div className="report-2col" style={{ marginBottom: 28 }}>
                     <div>
                       <label style={{ display: "block", fontSize: 12, color: "#64748b", marginBottom: 8 }}>Your Name (Optional)</label>
                       <input
@@ -472,6 +472,29 @@ export default function ReportPage() {
             </form>
           </>
         )}
+
+        <nav className="mobile-bottom-nav">
+          <Link href="/">
+            <span className="icon">🏠</span>
+            <span>Home</span>
+          </Link>
+          <Link href="/map">
+            <span className="icon">🗺️</span>
+            <span>Live Map</span>
+          </Link>
+          <Link href="/alerts">
+            <span className="icon">🔔</span>
+            <span>Alerts</span>
+          </Link>
+          <Link href="/shelter">
+            <span className="icon">🏥</span>
+            <span>Shelters</span>
+          </Link>
+          <Link href="/report" className="active">
+            <span className="icon">📸</span>
+            <span>Report</span>
+          </Link>
+        </nav>
       </main>
     </div>
   );

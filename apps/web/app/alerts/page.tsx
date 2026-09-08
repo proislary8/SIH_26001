@@ -172,11 +172,11 @@ export default function PublicAlertsPage() {
 
         {/* Severity Color Guide */}
         {showGuide && (
-          <div style={{ marginBottom: 28, padding: "24px", borderRadius: 16, background: "#0a0f1d", border: "1px solid rgba(255,255,255,0.08)", animation: "slideIn 0.2s ease" }}>
+          <div style={{ marginBottom: 28, padding: "20px", borderRadius: 16, background: "#0a0f1d", border: "1px solid rgba(255,255,255,0.08)", animation: "slideIn 0.2s ease" }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 16 }}>📌 Alert Color Guide</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div className="severity-guide-grid">
               {SEVERITY_GUIDE.map((g) => (
-                <div key={g.level} style={{ padding: "16px", borderRadius: 12, background: g.bg, border: `1px solid ${g.border}` }}>
+                <div key={g.level} style={{ padding: "14px", borderRadius: 12, background: g.bg, border: `1px solid ${g.border}` }}>
                   <div style={{ fontSize: 11, fontWeight: 900, color: g.color, textTransform: "uppercase", marginBottom: 6 }}>{g.level}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "white", marginBottom: 5 }}>{g.title}</div>
                   <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.55 }}>{g.desc}</div>
@@ -225,9 +225,9 @@ export default function PublicAlertsPage() {
               }}
             >
               {/* Alert header */}
-              <div style={{ padding: "20px 24px" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ padding: "18px 20px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12, gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span style={{
                       padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 900,
                       textTransform: "uppercase", letterSpacing: "0.06em",
@@ -242,26 +242,25 @@ export default function PublicAlertsPage() {
                   <span style={{ fontSize: 11, color: "#475569", fontFamily: "monospace", flexShrink: 0 }}>{alert.issued_at}</span>
                 </div>
 
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: "white", marginBottom: 10, lineHeight: 1.4 }}>{alert.title}</h2>
+                <h2 style={{ fontSize: 17, fontWeight: 800, color: "white", marginBottom: 10, lineHeight: 1.4 }}>{alert.title}</h2>
                 <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.65, marginBottom: 16 }}>{alert.description}</p>
 
                 {/* Action bar */}
-                <div style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
-                  padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                <div className="alert-card-meta" style={{
+                  padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <AlertTriangle size={14} style={{ color: severityColor(alert.severity), flexShrink: 0 }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{alert.action}</span>
                   </div>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 5 }}>
                       <Volume2 size={12} />
                       {alert.language_voices.join(", ")}
                     </span>
                     <a href={`tel:${alert.ndrf_phone}`} style={{
-                      display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 8,
-                      background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)",
+                      display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 8,
+                      background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)",
                       color: "#4ade80", fontSize: 11, fontWeight: 700, textDecoration: "none",
                     }}>
                       <Phone size={11} /> Call NDRF
@@ -276,7 +275,7 @@ export default function PublicAlertsPage() {
                   onClick={() => setExpandedId(expandedId === alert.id ? null : alert.id)}
                   style={{
                     width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "14px 24px", background: "none", border: "none", cursor: "pointer",
+                    padding: "14px 20px", background: "none", border: "none", cursor: "pointer",
                     color: "#94a3b8", fontSize: 13, fontWeight: 600,
                   }}
                 >
@@ -288,7 +287,7 @@ export default function PublicAlertsPage() {
                 </button>
 
                 {expandedId === alert.id && (
-                  <div style={{ padding: "0 24px 20px", animation: "slideIn 0.2s ease" }}>
+                  <div style={{ padding: "0 20px 20px", animation: "slideIn 0.2s ease" }}>
                     <ol className="what-to-do" style={{ margin: 0, padding: "0 0 0 20px", listStyle: "decimal" }}>
                       {alert.what_to_do.map((step, i) => (
                         <li key={i} style={{ fontSize: 13, color: "#cbd5e1", lineHeight: 1.6, paddingLeft: 4 }}>
@@ -296,7 +295,7 @@ export default function PublicAlertsPage() {
                         </li>
                       ))}
                     </ol>
-                    <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                    <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
                       <Link href="/shelter" style={{
                         display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10,
                         background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)",
@@ -320,11 +319,11 @@ export default function PublicAlertsPage() {
         </div>
 
         {/* Emergency helplines */}
-        <div style={{ marginTop: 40, padding: "24px", borderRadius: 16, background: "#0a0f1d", border: "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ marginTop: 40, padding: "20px", borderRadius: 16, background: "#0a0f1d", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 16 }}>
             🆘 Emergency Helplines — Call Anytime
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+          <div className="helplines-grid">
             {[
               { name: "NDMA (National)", number: "1078" },
               { name: "NDRF Control Room", number: "011-23438252" },
@@ -345,6 +344,28 @@ export default function PublicAlertsPage() {
           </div>
         </div>
 
+        <nav className="mobile-bottom-nav">
+          <Link href="/">
+            <span className="icon">🏠</span>
+            <span>Home</span>
+          </Link>
+          <Link href="/map">
+            <span className="icon">🗺️</span>
+            <span>Live Map</span>
+          </Link>
+          <Link href="/alerts" className="active">
+            <span className="icon">🔔</span>
+            <span>Alerts</span>
+          </Link>
+          <Link href="/shelter">
+            <span className="icon">🏥</span>
+            <span>Shelters</span>
+          </Link>
+          <Link href="/report">
+            <span className="icon">📸</span>
+            <span>Report</span>
+          </Link>
+        </nav>
       </main>
     </div>
   );

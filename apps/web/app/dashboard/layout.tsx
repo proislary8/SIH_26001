@@ -16,11 +16,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .single();
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#000000", color: "#ffffff", overflow: "hidden", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="dash-layout">
       <DashboardSidebar role={profile?.role ?? "citizen"} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+      <div className="dash-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
         <DashboardHeader user={{ email: user.email!, name: profile?.full_name ?? "", role: profile?.role ?? "citizen" }} />
-        <main style={{ flex: 1, overflowY: "auto", padding: 24, background: "#000000" }}>
+        <main style={{ flex: 1, overflowY: "auto", padding: "16px", background: "#000000" }}>
           {children}
         </main>
       </div>

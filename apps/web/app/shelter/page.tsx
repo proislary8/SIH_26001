@@ -158,24 +158,24 @@ export default function ShelterPage() {
         </div>
 
         {/* In an Emergency — 3 Steps Banner */}
-        <div style={{ marginBottom: 32, padding: "24px", borderRadius: 20, background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+        <div style={{ marginBottom: 32, padding: "20px", borderRadius: 20, background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <AlertTriangle size={18} style={{ color: "#f87171" }} />
             <span style={{ fontSize: 14, fontWeight: 800, color: "#f87171" }}>If You Are in Immediate Danger — Do This Now</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <div className="emergency-steps-grid">
             {EMERGENCY_STEPS.map((s, i) => (
-              <div key={i} style={{ padding: "14px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <div style={{ fontSize: 22, marginBottom: 8 }}>{s.icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "white", marginBottom: 4 }}>{s.step}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.5 }}>{s.action}</div>
+              <div key={i} style={{ padding: "12px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <div style={{ fontSize: 20, marginBottom: 6 }}>{s.icon}</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "white", marginBottom: 3 }}>{s.step}</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", lineHeight: 1.4 }}>{s.action}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Search & Filter */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, marginBottom: 28 }}>
+        <div className="shelter-search-row">
           <div style={{ position: "relative" }}>
             <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#475569" }} />
             <input
@@ -217,7 +217,7 @@ export default function ShelterPage() {
         </p>
 
         {/* Shelter Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 20 }}>
+        <div className="shelter-grid">
           {filteredShelters.map((shelter) => {
             const pct = occupancyPct(shelter);
             const avail = availableSpots(shelter);
@@ -234,7 +234,7 @@ export default function ShelterPage() {
                 {shelter.alerts_nearby > 0 && (
                   <div style={{
                     background: "rgba(220,38,38,0.15)", borderBottom: "1px solid rgba(220,38,38,0.2)",
-                    padding: "8px 20px", display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 16px", display: "flex", alignItems: "center", gap: 8,
                   }}>
                     <AlertTriangle size={12} style={{ color: "#f87171" }} />
                     <span style={{ fontSize: 11, color: "#f87171", fontWeight: 700 }}>
@@ -243,9 +243,9 @@ export default function ShelterPage() {
                   </div>
                 )}
 
-                <div style={{ padding: "20px" }}>
+                <div style={{ padding: "18px" }}>
                   {/* Status & Location */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
                     <span style={{
                       padding: "3px 10px", borderRadius: 100, fontSize: 10, fontWeight: 800, textTransform: "uppercase",
                       background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)",
@@ -256,17 +256,17 @@ export default function ShelterPage() {
                     <span style={{ marginLeft: "auto", fontSize: 11, color: "#60a5fa", fontWeight: 600 }}>~{shelter.distance_km} km</span>
                   </div>
 
-                  <h3 style={{ fontSize: 16, fontWeight: 800, color: "white", marginBottom: 5 }}>{shelter.name}</h3>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: "white", marginBottom: 5 }}>{shelter.name}</h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
                     <MapPin size={12} style={{ color: "#475569", flexShrink: 0 }} />
                     <span style={{ fontSize: 12, color: "#64748b" }}>{shelter.address}</span>
                   </div>
 
                   {/* Occupancy bar */}
-                  <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>Capacity Used</span>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: occupancyColor(pct) }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: occupancyColor(pct) }}>
                         {avail > 0 ? `${avail.toLocaleString()} spots available` : "FULL"}
                       </span>
                     </div>
@@ -280,26 +280,26 @@ export default function ShelterPage() {
                   </div>
 
                   {/* Amenities */}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
                     {shelter.medical_facility && (
-                      <span style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 8, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", fontSize: 11, color: "#60a5fa", fontWeight: 600 }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 6, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", fontSize: 10, color: "#60a5fa", fontWeight: 600 }}>
                         🏥 Medical Aid
                       </span>
                     )}
-                    <span style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 8, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)", fontSize: 11, color: "#4ade80", fontWeight: 600 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 6, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)", fontSize: 10, color: "#4ade80", fontWeight: 600 }}>
                       🍲 Food: {shelter.food_supply}
                     </span>
                   </div>
 
                   {/* Action buttons */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="shelter-actions">
                     <a href={`tel:${shelter.contact}`} style={{
-                      display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                      padding: "11px", borderRadius: 12, background: "rgba(34,197,94,0.12)",
-                      border: "1px solid rgba(34,197,94,0.25)", color: "#4ade80", fontSize: 13,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      padding: "10px", borderRadius: 12, background: "rgba(34,197,94,0.12)",
+                      border: "1px solid rgba(34,197,94,0.25)", color: "#4ade80", fontSize: 12,
                       fontWeight: 700, textDecoration: "none",
                     }}>
-                      <Phone size={13} /> Call Now
+                      <Phone size={12} /> Call Now
                     </a>
                     <a
                       href={`https://www.google.com/maps/dir/?api=1&destination=${shelter.lat},${shelter.lng}`}
@@ -307,13 +307,13 @@ export default function ShelterPage() {
                       rel="noreferrer"
                       className="nav-btn"
                       style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                        padding: "11px", borderRadius: 12, background: "rgba(59,130,246,0.1)",
-                        border: "1px solid rgba(59,130,246,0.2)", color: "#60a5fa", fontSize: 13,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        padding: "10px", borderRadius: 12, background: "rgba(59,130,246,0.1)",
+                        border: "1px solid rgba(59,130,246,0.2)", color: "#60a5fa", fontSize: 12,
                         fontWeight: 700, textDecoration: "none",
                       }}
                     >
-                      <Navigation size={13} /> Navigate
+                      <Navigation size={12} /> Navigate
                     </a>
                   </div>
                 </div>
@@ -337,26 +337,48 @@ export default function ShelterPage() {
         )}
 
         {/* Report hazard CTA */}
-        <div style={{ marginTop: 48, padding: "28px", borderRadius: 20, background: "#0a0f1d", border: "1px solid rgba(251,191,36,0.15)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+        <div style={{ marginTop: 48, padding: "20px", borderRadius: 20, background: "#0a0f1d", border: "1px solid rgba(251,191,36,0.15)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "white", marginBottom: 5 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "white", marginBottom: 4 }}>
                 📸 Spotted a hazard near a shelter?
               </div>
-              <div style={{ fontSize: 13, color: "#64748b" }}>
+              <div style={{ fontSize: 12, color: "#64748b" }}>
                 Submit a quick field report — helps rescue teams and other citizens stay safe.
               </div>
             </div>
             <Link href="/report" style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "11px 22px", borderRadius: 100,
+              display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 100,
               background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)",
-              color: "#fbbf24", fontSize: 13, fontWeight: 700, textDecoration: "none",
+              color: "#fbbf24", fontSize: 12, fontWeight: 700, textDecoration: "none",
             }}>
               Report Hazard →
             </Link>
           </div>
         </div>
 
+        <nav className="mobile-bottom-nav">
+          <Link href="/">
+            <span className="icon">🏠</span>
+            <span>Home</span>
+          </Link>
+          <Link href="/map">
+            <span className="icon">🗺️</span>
+            <span>Live Map</span>
+          </Link>
+          <Link href="/alerts">
+            <span className="icon">🔔</span>
+            <span>Alerts</span>
+          </Link>
+          <Link href="/shelter" className="active">
+            <span className="icon">🏥</span>
+            <span>Shelters</span>
+          </Link>
+          <Link href="/report">
+            <span className="icon">📸</span>
+            <span>Report</span>
+          </Link>
+        </nav>
       </main>
     </div>
   );

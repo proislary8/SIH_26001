@@ -20,14 +20,14 @@ export default function DashboardHeader({ user }: Props) {
   const initials = (user.name || user.email)[0].toUpperCase();
 
   return (
-    <header style={{
+    <header className="dash-header" style={{
       height: 64, display: "flex", alignItems: "center", justifyContent: "space-between",
       padding: "0 24px", flexShrink: 0,
       borderBottom: "1px solid rgba(255,255,255,0.08)",
       background: "#080808",
     }}>
       {/* System status pills */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div className="dash-header-status" style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", animation: "pulse 2s infinite" }} />
           <span style={{ fontSize: 11, color: "#a1a1aa", fontWeight: 600 }}>System Operational</span>
