@@ -1,10 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n";
+import { alertBodyFor } from "@/lib/alerts/body";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
+import type { Alert as AlertRow } from "@/lib/types/database";
+import { timeAgo } from "@/lib/utils";
 import { Bell, AlertTriangle, Volume2, ArrowLeft, Radio, Phone, CheckCircle, Info } from "lucide-react";
 
-const ALERTS_DATA = [
+interface PublicAlert {
+  id: string;
+  severity: string;
+  title: string;
+  state: string;
+  district: string;
+  issued_at: string;
+  description: string;
+  action: string;
+  what_to_do: string[];
+  language_voices: string[];
+  ndrf_phone: string;
+}
+
+/**
+ * Worked examples, shown only when no alert is in force.
+ *
+ * They are clearly labelled as samples in the UI — an alerts page that
+ * invents a live evacuation order would be actively dangerous.
+ */
+const SAMPLE_ALERTS: PublicAlert[] = [
   {
     id: "a1",
     severity: "CRITICAL",
@@ -107,11 +133,87 @@ const SEVERITY_GUIDE = [
 ];
 
 export default function PublicAlertsPage() {
+  const { locale } = useI18n();
   const [selectedSeverity, setSelectedSeverity] = useState("ALL");
-  const [expandedId, setExpandedId] = useState<string | null>("a1");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
 
-  const filteredAlerts = ALERTS_DATA.filter(
+  const [alerts, setAlerts] = useState<PublicAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isLive, setIsLive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+
+    async function load() {
+      try {
+        const { data, error } = await supabase
+          .from("alerts")
+          .select("*, risk_zones(name), ner_districts(name, ner_states(name))")
+          .eq("is_active", true)
+          .order("issued_at", { ascending: false })
+          .limit(30);
+
+        if (error) throw new Error(error.message);
+        if (cancelled) return;
+
+        const mapped: PublicAlert[] = (data ?? []).map((row) => {
+          const a = row as unknown as AlertRow;
+          const district = (Array.isArray(row.ner_districts) ? row.ner_districts[0] : row.ner_districts) as
+            | { name?: string; ner_states?: { name?: string } | { name?: string }[] } | null;
+          const stateRel = district?.ner_states;
+          const stateName = (Array.isArray(stateRel) ? stateRel[0]?.name : stateRel?.name) ?? "";
+
+          // Show each alert in the reader's language where a translation
+          // exists, falling back to English rather than showing nothing.
+          const { body } = alertBodyFor(a, locale);
+
+          return {
+            id: a.id,
+            severity: a.severity.toUpperCase(),
+            title: a.title,
+            state: stateName,
+            district: district?.name ?? "",
+            issued_at: timeAgo(a.issued_at),
+            description: body,
+            action: a.instruction ?? "",
+            what_to_do: (a.instruction ?? "")
+              .split(/\n|(?<=\.)\s+(?=[A-Z])/)
+              .map((x) => x.trim())
+              .filter(Boolean),
+            language_voices: [],
+            ndrf_phone: "011-23438252",
+          };
+        });
+
+        setAlerts(mapped);
+        setIsLive(true);
+        setExpandedId(mapped[0]?.id ?? null);
+      } catch {
+        if (!cancelled) setIsLive(false);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+
+    // Live updates: an alert issued from the console appears here at once.
+    const channel = supabase
+      .channel("public-alerts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alerts" }, () => void load())
+      .subscribe();
+
+    return () => { cancelled = true; void supabase.removeChannel(channel); };
+  }, [locale]);
+
+  // Real alerts always win. Samples only appear when nothing is in force,
+  // and are labelled as such.
+  const showingSamples = !loading && alerts.length === 0;
+  const displayAlerts = showingSamples ? SAMPLE_ALERTS : alerts;
+
+  const filteredAlerts = displayAlerts.filter(
     (a) => selectedSeverity === "ALL" || a.severity === selectedSeverity
   );
 
@@ -146,14 +248,59 @@ export default function PublicAlertsPage() {
             <ArrowLeft size={16} />
             Back to Home
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Radio size={14} style={{ color: "#ef4444", animation: "pulse 2s infinite" }} />
-            <span style={{ fontSize: 11, color: "#f87171", fontWeight: 700 }}>LIVE BROADCAST ACTIVE</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Radio
+                size={14}
+                aria-hidden="true"
+                style={{
+                  color: alerts.length > 0 ? "#ef4444" : "#4ade80",
+                  animation: alerts.length > 0 ? "pulse 2s infinite" : undefined,
+                }}
+              />
+              <span style={{ fontSize: 11, color: alerts.length > 0 ? "#f87171" : "#4ade80", fontWeight: 700 }}>
+                {loading
+                  ? "CHECKING…"
+                  : alerts.length > 0
+                    ? `${alerts.length} ALERT${alerts.length === 1 ? "" : "S"} IN FORCE`
+                    : "NO ACTIVE ALERTS"}
+              </span>
+            </div>
+            <LanguageSwitcher compact />
           </div>
         </div>
       </header>
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "40px 20px" }}>
+
+        {/* Never let a worked example be mistaken for a live warning. */}
+        {showingSamples && (
+          <div
+            role="status"
+            style={{
+              marginBottom: 24, padding: "12px 16px", borderRadius: 12,
+              background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.3)",
+              fontSize: 12.5, color: "#93c5fd", lineHeight: 1.6,
+            }}
+          >
+            <strong>No alerts are currently in force.</strong> The examples below show what a real
+            warning looks like and what it would ask you to do. They are samples, not live alerts.
+          </div>
+        )}
+
+        {!isLive && !loading && (
+          <div
+            role="status"
+            style={{
+              marginBottom: 24, padding: "12px 16px", borderRadius: 12,
+              background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)",
+              fontSize: 12.5, color: "#fcd34d",
+            }}
+          >
+            Could not reach the alert server. Call NDMA 1078 or your district control room on 1077
+            for the current situation.
+          </div>
+        )}
 
         {/* Page Header */}
         <div style={{ marginBottom: 36 }}>
@@ -190,7 +337,7 @@ export default function PublicAlertsPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11, color: "#475569", fontWeight: 600, marginRight: 4 }}>Filter:</span>
           {[
-            { key: "ALL", label: `All Alerts (${ALERTS_DATA.length})`, color: "#e2e8f0" },
+            { key: "ALL", label: `All Alerts (${displayAlerts.length})`, color: "#e2e8f0" },
             { key: "CRITICAL", label: "🔴 Critical", color: "#f87171" },
             { key: "HIGH", label: "🟠 High", color: "#fb923c" },
             { key: "MEDIUM", label: "🟡 Medium", color: "#fbbf24" },

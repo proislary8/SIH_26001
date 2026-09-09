@@ -1,3 +1,10 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+allowBuilds:
+  # Telemetry pinger that used to arrive with @arcgis/core. Harmless to keep
+  # declared; it simply never needs to build.
+  '@vaadin/vaadin-usage-statistics': false
+  # napi postinstall that links the native binding for eslint-import-resolver-typescript.
+  unrs-resolver: true

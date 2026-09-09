@@ -1,10 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import { Shield, MapPin, Phone, Users, Home, Search, ArrowLeft, AlertTriangle, Navigation, CheckCircle, Utensils } from "lucide-react";
 
-const SHELTERS = [
+/**
+ * Offline fallback. The live list is loaded from safe_shelters below;
+ * these entries keep the page useful when the PWA is opened with no
+ * connection, which is the situation this page exists for.
+ */
+interface Shelter {
+  id: string;
+  name: string;
+  state: string;
+  district: string;
+  address: string;
+  capacity: number;
+  occupied: number;
+  status: string;
+  contact: string;
+  medical_facility: boolean;
+  food_supply: string;
+  distance_km: number;
+  lat: number;
+  lng: number;
+  alerts_nearby: number;
+}
+
+const FALLBACK_SHELTERS: Shelter[] = [
   {
     id: "s1",
     name: "Haflong High School Relief Center",
@@ -100,10 +126,120 @@ const EMERGENCY_STEPS = [
 ];
 
 export default function ShelterPage() {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedState, setSelectedState] = useState("All");
 
-  const filteredShelters = SHELTERS.filter((s) => {
+  const [shelters, setShelters] = useState<Shelter[]>(FALLBACK_SHELTERS);
+  const [isLive, setIsLive] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  // Ask for location so shelters can be ranked by real distance rather
+  // than a stored guess. Declining is fine — the list still loads.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const supabase = createClient();
+
+        // With a location we can use the PostGIS nearest-neighbour RPC,
+        // which returns real distances; without one, list them all.
+        if (coords) {
+          const { data, error } = await supabase.rpc("get_nearest_shelters", {
+            p_lat: coords.lat,
+            p_lng: coords.lng,
+            p_limit: 30,
+          });
+          if (error) throw new Error(error.message);
+          if (cancelled || !data?.length) { setLoading(false); return; }
+
+          setShelters(
+            data.map((r) => ({
+              id: r.shelter_id,
+              name: r.name,
+              state: "",
+              district: r.district_name ?? "",
+              address: r.address ?? "",
+              capacity: r.capacity,
+              occupied: r.current_occupancy,
+              status: r.available_spots > 0 ? "Open" : "Full",
+              contact: r.contact_phone ?? "1077",
+              medical_facility: r.has_medical,
+              food_supply: r.has_food_supplies ? "Available" : "Not stocked",
+              distance_km: Math.round((r.distance_m / 1000) * 10) / 10,
+              lat: r.lat,
+              lng: r.lng,
+              alerts_nearby: 0,
+            })),
+          );
+          setIsLive(true);
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("safe_shelters")
+          .select("id, name, address, capacity, current_occupancy, has_medical, has_food_supplies, contact_phone, location, ner_districts(name, ner_states(name))")
+          .eq("is_active", true)
+          .order("name");
+
+        if (error) throw new Error(error.message);
+        if (cancelled || !data?.length) { setLoading(false); return; }
+
+        setShelters(
+          data.map((r) => {
+            const point = r.location as unknown as GeoJSON.Point | null;
+            const district = (Array.isArray(r.ner_districts) ? r.ner_districts[0] : r.ner_districts) as
+              | { name?: string; ner_states?: { name?: string } | { name?: string }[] } | null;
+            const stateRel = district?.ner_states;
+            const stateName = (Array.isArray(stateRel) ? stateRel[0]?.name : stateRel?.name) ?? "";
+            return {
+              id: String(r.id),
+              name: String(r.name),
+              state: stateName,
+              district: district?.name ?? "",
+              address: String(r.address ?? ""),
+              capacity: Number(r.capacity ?? 0),
+              occupied: Number(r.current_occupancy ?? 0),
+              status: Number(r.capacity) > Number(r.current_occupancy) ? "Open" : "Full",
+              contact: String(r.contact_phone ?? "1077"),
+              medical_facility: Boolean(r.has_medical),
+              food_supply: r.has_food_supplies ? "Available" : "Not stocked",
+              distance_km: 0,
+              lat: point?.coordinates[1] ?? 0,
+              lng: point?.coordinates[0] ?? 0,
+              alerts_nearby: 0,
+            };
+          }),
+        );
+        setIsLive(true);
+      } catch {
+        // Keep the bundled fallback list — better than an empty page.
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [coords]);
+
+  const filteredShelters = shelters.filter((s) => {
     const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.district.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,8 +248,15 @@ export default function ShelterPage() {
     return matchesSearch && matchesState;
   });
 
-  const occupancyPct = (s: typeof SHELTERS[0]) => Math.round((s.occupied / s.capacity) * 100);
-  const availableSpots = (s: typeof SHELTERS[0]) => s.capacity - s.occupied;
+  // Derive the filter options from the data rather than a fixed list — the
+  // nearest-shelter path returns whichever states are actually nearby.
+  const stateOptions = useMemo(
+    () => Array.from(new Set(shelters.map((sh) => sh.state).filter(Boolean))).sort(),
+    [shelters],
+  );
+
+  const occupancyPct = (s: Shelter) => (s.capacity > 0 ? Math.round((s.occupied / s.capacity) * 100) : 0);
+  const availableSpots = (s: Shelter) => s.capacity - s.occupied;
   const occupancyColor = (pct: number) => pct > 80 ? "#ef4444" : pct > 50 ? "#f97316" : "#22c55e";
 
   return (
@@ -137,9 +280,18 @@ export default function ShelterPage() {
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, color: "#94a3b8", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
             <ArrowLeft size={16} /> Back to Home
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Shield size={14} style={{ color: "#4ade80" }} />
-            <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 700 }}>5 Active Relief Camps · Verified by SDMA</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Shield size={14} style={{ color: isLive ? "#4ade80" : "#fbbf24" }} aria-hidden="true" />
+              <span style={{ fontSize: 11, color: isLive ? "#4ade80" : "#fbbf24", fontWeight: 700 }}>
+                {loading
+                  ? "Loading shelters…"
+                  : isLive
+                    ? `${shelters.length} shelters · live`
+                    : `${shelters.length} shelters · offline copy`}
+              </span>
+            </div>
+            <LanguageSwitcher compact />
           </div>
         </div>
       </header>
@@ -199,14 +351,9 @@ export default function ShelterPage() {
             }}
           >
             <option value="All">All States</option>
-            <option value="Assam">Assam</option>
-            <option value="Mizoram">Mizoram</option>
-            <option value="Sikkim">Sikkim</option>
-            <option value="Meghalaya">Meghalaya</option>
-            <option value="Manipur">Manipur</option>
-            <option value="Nagaland">Nagaland</option>
-            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
-            <option value="Tripura">Tripura</option>
+            {stateOptions.map((st) => (
+              <option key={st} value={st}>{st}</option>
+            ))}
           </select>
         </div>
 

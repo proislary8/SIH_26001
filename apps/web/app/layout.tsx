@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import QueryProvider from "@/components/providers/QueryProvider";
+import { I18nProvider } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/i18n/server";
+import OfflineSyncProvider from "@/components/providers/OfflineSyncProvider";
 import ServiceWorkerRegistrar from "@/components/providers/ServiceWorkerRegistrar";
 import "./globals.css";
 
@@ -34,12 +37,17 @@ export const viewport: Viewport = {
   themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale / userScalable lock: pinch-zoom must stay available
+  // (WCAG 1.4.4). People read this on cracked phone screens in bad light.
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Resolved on the server from the language cookie, so the first paint is
+  // already in the right language and <html lang> is correct for screen readers.
+  const locale = await getServerLocale();
+
   return (
-    <html lang="en" className="dark">
+    <html lang={locale} className="dark">
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -49,21 +57,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${geist.variable} ${geistMono.variable} antialiased`}
         style={{ background: "#000000", color: "#ffffff", minHeight: "100vh" }}>
-        <QueryProvider>
-          <ServiceWorkerRegistrar />
-          {children}
-          <Toaster
-            position="top-right"
-            theme="dark"
-            toastOptions={{
-              style: { background: "#111", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" },
-              classNames: {
-                error: "!border-white/20 !bg-black",
-                success: "!border-white/20 !bg-black",
-              },
-            }}
-          />
-        </QueryProvider>
+        <a href="#main" className="skip-link">Skip to main content</a>
+        <I18nProvider initialLocale={locale}>
+          <QueryProvider>
+            <ServiceWorkerRegistrar />
+            <OfflineSyncProvider />
+            <div id="main">{children}</div>
+            <Toaster
+              position="top-right"
+              theme="dark"
+              toastOptions={{
+                style: { background: "#111", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" },
+                classNames: {
+                  error: "!border-white/20 !bg-black",
+                  success: "!border-white/20 !bg-black",
+                },
+              }}
+            />
+          </QueryProvider>
+        </I18nProvider>
       </body>
     </html>
   );

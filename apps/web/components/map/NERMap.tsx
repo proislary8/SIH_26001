@@ -1,12 +1,21 @@
 "use client";
-import { useEffect, useRef, useState, useCallback, lazy, Suspense } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
 import type { FeatureCollection } from "geojson";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
+import {
+  fetchLiveMapData,
+  FALLBACK_ZONES, FALLBACK_SHELTERS, FALLBACK_TEAMS,
+  type MapZone, type MapShelter, type MapTeam,
+} from "@/lib/map/liveData";
 
-// ArcGIS — lazy loaded to avoid SSR issues and keep initial bundle small
-const ArcGISNERMap = lazy(() => import("@/components/map/ArcGISNERMap"));
+// The ArcGIS SDK was removed: 250 MB of Esri packages through
+// transpilePackages made the Vercel build unreliable, and it only powered
+// an optional second engine. MapLibre covers every feature this map needs,
+// and the satellite/topo basemaps below still come from ArcGIS Online tile
+// services — those are plain URLs and need no SDK.
 
 // --- NE State data ----------------------------------------------------------
 const NE_STATES = [
@@ -124,86 +133,32 @@ interface Zone {
   source?: string;
 }
 
-const now = new Date();
-const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600000).toISOString();
-
-const ZONES: Zone[] = [
-  // ACTIVE 24H LANDSLIDES
-  { id: "z1", name: "Dima Hasao Slide", type: "ACTIVE_24H", state: "AS", pop_at_risk: 8400, timestamp: hoursAgo(6), rainfall_mm: 187, source: "IMD", coords: [[92.55, 25.50], [92.90, 25.50], [92.90, 25.75], [92.55, 25.75], [92.55, 25.50]] },
-  { id: "z2", name: "Aizawl Hillside", type: "ACTIVE_24H", state: "MZ", pop_at_risk: 5200, timestamp: hoursAgo(14), rainfall_mm: 142, source: "SDRF Mizoram", coords: [[92.65, 23.65], [92.80, 23.65], [92.80, 23.80], [92.65, 23.80], [92.65, 23.65]] },
-  { id: "z3", name: "North Sikkim Corridor", type: "ACTIVE_24H", state: "SK", pop_at_risk: 2100, timestamp: hoursAgo(3), rainfall_mm: 210, source: "GLOF Alert", coords: [[88.40, 27.70], [88.70, 27.70], [88.70, 27.95], [88.40, 27.95], [88.40, 27.70]] },
-  { id: "z4", name: "Tamenglong Slope", type: "ACTIVE_24H", state: "MN", pop_at_risk: 3800, timestamp: hoursAgo(18), rainfall_mm: 163, source: "CWC", coords: [[93.45, 24.98], [93.65, 24.98], [93.65, 25.15], [93.45, 25.15], [93.45, 24.98]] },
-  // ACTIVE 72H
-  { id: "z5b", name: "Jaintia Hills Slip", type: "ACTIVE_72H", state: "ML", pop_at_risk: 12000, timestamp: hoursAgo(36), rainfall_mm: 98, source: "GSI", coords: [[92.00, 25.25], [92.45, 25.25], [92.45, 25.55], [92.00, 25.55], [92.00, 25.25]] },
-  { id: "z6b", name: "Kohima Road Slip", type: "ACTIVE_72H", state: "NL", pop_at_risk: 7200, timestamp: hoursAgo(48), rainfall_mm: 115, source: "NDRF", coords: [[93.90, 25.60], [94.25, 25.60], [94.25, 25.90], [93.90, 25.90], [93.90, 25.60]] },
-  // HIGH RISK
-  { id: "z7", name: "West Siang Zone", type: "HIGH_RISK", state: "AR", pop_at_risk: 6700, rainfall_mm: 88, coords: [[93.70, 27.85], [94.10, 27.85], [94.10, 28.20], [93.70, 28.20], [93.70, 27.85]] },
-  { id: "z8", name: "Dhalai Hills", type: "HIGH_RISK", state: "TR", pop_at_risk: 11200, rainfall_mm: 76, coords: [[91.85, 23.75], [92.20, 23.75], [92.20, 24.10], [91.85, 24.10], [91.85, 23.75]] },
-  { id: "z9", name: "Phek District", type: "HIGH_RISK", state: "NL", pop_at_risk: 4500, rainfall_mm: 92, coords: [[94.40, 25.90], [94.80, 25.90], [94.80, 26.20], [94.40, 26.20], [94.40, 25.90]] },
-  // MEDIUM RISK
-  { id: "z10", name: "South Assam Plains", type: "MEDIUM_RISK", state: "AS", pop_at_risk: 35000, coords: [[92.30, 24.85], [93.00, 24.85], [93.00, 25.10], [92.30, 25.10], [92.30, 24.85]] },
-  { id: "z11", name: "Champhai Valley", type: "MEDIUM_RISK", state: "MZ", pop_at_risk: 18000, coords: [[93.10, 23.30], [93.35, 23.30], [93.35, 23.60], [93.10, 23.60], [93.10, 23.30]] },
-  { id: "z12", name: "Senapati Slopes", type: "MEDIUM_RISK", state: "MN", pop_at_risk: 22000, coords: [[93.70, 25.10], [94.00, 25.10], [94.00, 25.45], [93.70, 25.45], [93.70, 25.10]] },
-  { id: "z13", name: "East Khasi Hills", type: "MEDIUM_RISK", state: "ML", pop_at_risk: 28000, coords: [[91.60, 25.30], [92.00, 25.30], [92.00, 25.65], [91.60, 25.65], [91.60, 25.30]] },
-  // LOW RISK
-  { id: "z14", name: "Brahmaputra Valley", type: "LOW_RISK", state: "AS", pop_at_risk: 85000, coords: [[90.50, 26.10], [92.00, 26.10], [92.00, 26.60], [90.50, 26.60], [90.50, 26.10]] },
-  { id: "z15", name: "Imphal Valley", type: "LOW_RISK", state: "MN", pop_at_risk: 42000, coords: [[93.75, 24.55], [94.20, 24.55], [94.20, 24.95], [93.75, 24.95], [93.75, 24.55]] },
-  { id: "z16", name: "Shillong Plateau", type: "LOW_RISK", state: "ML", pop_at_risk: 31000, coords: [[91.50, 25.50], [91.90, 25.50], [91.90, 25.80], [91.50, 25.80], [91.50, 25.50]] },
-  // SAFE ZONES
-  { id: "z17", name: "Guwahati Safe Corridor", type: "SAFE_ZONE", state: "AS", pop_at_risk: 0, coords: [[91.55, 26.05], [91.85, 26.05], [91.85, 26.25], [91.55, 26.25], [91.55, 26.05]] },
-  { id: "z18", name: "Gangtok Stable Zone", type: "SAFE_ZONE", state: "SK", pop_at_risk: 0, coords: [[88.45, 27.28], [88.60, 27.28], [88.60, 27.40], [88.45, 27.40], [88.45, 27.28]] },
-  { id: "z19", name: "Agartala Plains", type: "SAFE_ZONE", state: "TR", pop_at_risk: 0, coords: [[91.20, 23.70], [91.40, 23.70], [91.40, 23.90], [91.20, 23.90], [91.20, 23.70]] },
-  // FLOOD RISK
-  { id: "z20", name: "Lower Assam Floodplain", type: "FLOOD_RISK", state: "AS", pop_at_risk: 62000, coords: [[89.80, 26.30], [90.80, 26.30], [90.80, 26.65], [89.80, 26.65], [89.80, 26.30]] },
-  { id: "z21", name: "Silchar Flood Zone", type: "FLOOD_RISK", state: "AS", pop_at_risk: 28000, coords: [[92.65, 24.78], [92.95, 24.78], [92.95, 24.95], [92.65, 24.95], [92.65, 24.78]] },
-  // BUFFER
-  { id: "z22", name: "Nongpoh Buffer", type: "BUFFER_ZONE", state: "ML", pop_at_risk: 9000, coords: [[92.00, 25.80], [92.30, 25.80], [92.30, 26.00], [92.00, 26.00], [92.00, 25.80]] },
-];
-
-const ZONE_GEOJSON: FeatureCollection = {
-  type: "FeatureCollection",
-  features: ZONES.map(z => ({
-    type: "Feature" as const,
-    geometry: { type: "Polygon" as const, coordinates: [z.coords] },
-    properties: {
-      id: z.id, name: z.name, type: z.type, state: z.state,
-      pop_at_risk: z.pop_at_risk,
-      color: ZONE_TYPES[z.type].color,
-      opacity: ZONE_TYPES[z.type].opacity,
-      pulse: ZONE_TYPES[z.type].pulse,
-      severity: ZONE_TYPES[z.type].severity,
-      timestamp: z.timestamp || null,
-      rainfall_mm: z.rainfall_mm || null,
-      source: z.source || "GSI / NDMA",
-    },
-  })),
-};
-
-// --- Rescue Teams ----------------------------------------------------------
-const RESCUE_TEAMS = [
-  { id: "rt1", name: "NDRF 1st Bn", type: "NDRF", state: "AS", city: "Guwahati", lng: 91.74, lat: 26.14, phone: "01123438252", capacity: 45, status: "standby" },
-  { id: "rt2", name: "SDRF Assam", type: "SDRF", state: "AS", city: "Dispur", lng: 91.81, lat: 26.14, phone: "0361-2237219", capacity: 30, status: "standby" },
-  { id: "rt3", name: "SDRF Meghalaya", type: "SDRF", state: "ML", city: "Shillong", lng: 91.88, lat: 25.57, phone: "0364-2224444", capacity: 25, status: "standby" },
-  { id: "rt4", name: "SDRF Manipur", type: "SDRF", state: "MN", city: "Imphal", lng: 93.94, lat: 24.81, phone: "0385-2450290", capacity: 28, status: "deployed" },
-  { id: "rt5", name: "SDRF Sikkim", type: "SDRF", state: "SK", city: "Gangtok", lng: 88.61, lat: 27.33, phone: "03592-232462", capacity: 20, status: "standby" },
-  { id: "rt6", name: "NDRF 8th Bn", type: "NDRF", state: "MZ", city: "Aizawl", lng: 92.72, lat: 23.73, phone: "01123438252", capacity: 45, status: "standby" },
-  { id: "rt7", name: "Army 51 Sub Area", type: "Army", state: "ML", city: "Shillong", lng: 91.90, lat: 25.55, phone: "0364-2222845", capacity: 120, status: "standby" },
-  { id: "rt8", name: "SDRF Nagaland", type: "SDRF", state: "NL", city: "Kohima", lng: 94.10, lat: 25.67, phone: "0370-2270010", capacity: 22, status: "standby" },
-];
-
-// --- Safe Shelters ---------------------------------------------------------
-const SHELTERS = [
-  { id: "s1", name: "Govt HS Guwahati", city: "Guwahati", state: "AS", lng: 91.73, lat: 26.17, capacity: 500, occupancy: 0, type: "school" },
-  { id: "s2", name: "Cotton University", city: "Guwahati", state: "AS", lng: 91.73, lat: 26.16, capacity: 800, occupancy: 120, type: "university" },
-  { id: "s3", name: "NEIGRIHMS Hospital", city: "Shillong", state: "ML", lng: 91.88, lat: 25.58, capacity: 300, occupancy: 45, type: "hospital" },
-  { id: "s4", name: "Shillong Camp Ground", city: "Shillong", state: "ML", lng: 91.87, lat: 25.57, capacity: 600, occupancy: 0, type: "camp" },
-  { id: "s5", name: "Imphal War Cemetery", city: "Imphal", state: "MN", lng: 93.95, lat: 24.82, capacity: 200, occupancy: 0, type: "camp" },
-  { id: "s6", name: "Imphal Govt College", city: "Imphal", state: "MN", lng: 93.93, lat: 24.80, capacity: 400, occupancy: 80, type: "school" },
-  { id: "s7", name: "Aizawl Stadium", city: "Aizawl", state: "MZ", lng: 92.72, lat: 23.73, capacity: 2000, occupancy: 0, type: "camp" },
-  { id: "s8", name: "Gangtok Palace Grounds", city: "Gangtok", state: "SK", lng: 88.61, lat: 27.33, capacity: 350, occupancy: 0, type: "camp" },
-  { id: "s9", name: "Kohima War Memorial", city: "Kohima", state: "NL", lng: 94.11, lat: 25.67, capacity: 250, occupancy: 0, type: "camp" },
-  { id: "s10", name: "Agartala Town Hall", city: "Agartala", state: "TR", lng: 91.28, lat: 23.83, capacity: 450, occupancy: 0, type: "community" },
-];
+/**
+ * Zones, shelters and teams now come from the database via
+ * lib/map/liveData.ts. The FALLBACK_* arrays imported above are used when
+ * the device is offline or the tables are empty, so the map still opens
+ * and still shows shelters in a village with no signal.
+ */
+function buildZoneGeoJSON(zones: MapZone[]): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: zones.map((z) => ({
+      type: "Feature" as const,
+      geometry: { type: "Polygon" as const, coordinates: [z.coords] },
+      properties: {
+        id: z.id, name: z.name, type: z.type, state: z.state,
+        pop_at_risk: z.pop_at_risk,
+        color: ZONE_TYPES[z.type].color,
+        opacity: ZONE_TYPES[z.type].opacity,
+        pulse: ZONE_TYPES[z.type].pulse,
+        severity: ZONE_TYPES[z.type].severity,
+        timestamp: z.timestamp || null,
+        rainfall_mm: z.rainfall_mm || null,
+        source: z.source || "GSI / NDMA",
+      },
+    })),
+  };
+}
 
 // --- Helplines -------------------------------------------------------------
 const HELPLINES = [
@@ -261,7 +216,7 @@ function darkStyle(): maplibregl.StyleSpecification {
           "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
         ],
         tileSize: 256,
-        attribution: "Â© CARTO Â© OpenStreetMap contributors",
+        attribution: "© CARTO © OpenStreetMap contributors",
         maxzoom: 19,
       },
     },
@@ -329,7 +284,6 @@ export default function NERMap() {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const nearestMarkerRef = useRef<maplibregl.Marker | null>(null);
 
-  const [mapEngine, setMapEngine] = useState<"maplibre" | "arcgis">("maplibre");
   const [ready, setReady] = useState(false);
   const [basemapId, setBasemapId] = useState("dark");
   const [is3D, setIs3D] = useState(false);
@@ -341,15 +295,48 @@ export default function NERMap() {
   const [showShelters, setShowShelters] = useState(true);
   const [selectedInfo, setSelectedInfo] = useState<any>(null);
 
+  // Live data from Postgres, with the bundled fallbacks as the first paint
+  // so the map is never blank while the query is in flight.
+  const [zones, setZones] = useState<MapZone[]>(FALLBACK_ZONES);
+  const [shelters, setShelters] = useState<MapShelter[]>(FALLBACK_SHELTERS);
+  const [teams, setTeams] = useState<MapTeam[]>(FALLBACK_TEAMS);
+  const [isLiveData, setIsLiveData] = useState(false);
+
+  const zoneGeoJson = useMemo(() => buildZoneGeoJSON(zones), [zones]);
+
   // Geo / alert state
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [userZone, setUserZone] = useState<Zone | null>(null);
-  const [nearestShelters, setNearestShelters] = useState<Array<typeof SHELTERS[0] & { distance: number }>>([]);
+  const [nearestShelters, setNearestShelters] = useState<Array<MapShelter & { distance: number }>>([]);
   const [locationDenied, setLocationDenied] = useState(false);
   const [sosLoading, setSosLoading] = useState(false);
   const [sosSent, setSosSent] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
+
+  // -- Live data ---------------------------------------------------------------
+  const loadLiveData = useCallback(async () => {
+    const data = await fetchLiveMapData();
+    setZones(data.zones);
+    setShelters(data.shelters);
+    setTeams(data.teams);
+    setIsLiveData(data.isLive);
+  }, []);
+
+  useEffect(() => {
+    void loadLiveData();
+  }, [loadLiveData]);
+
+  useEffect(() => {
+    const supabase = createSupabaseClient();
+    const channel = supabase
+      .channel("public-map-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "risk_scores" }, () => void loadLiveData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "safe_shelters" }, () => void loadLiveData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "rescue_teams" }, () => void loadLiveData())
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [loadLiveData]);
 
   // -- Online/offline detection -----------------------------------------------
   useEffect(() => {
@@ -385,7 +372,7 @@ export default function NERMap() {
 
     map.on("load", () => {
       addStateLayers(map);
-      addZoneLayers(map);
+      addZoneLayers(map, zoneGeoJson);
       setReady(true);
     });
 
@@ -426,9 +413,24 @@ export default function NERMap() {
   // -- Add markers when map ready --------------------------------------------
   useEffect(() => {
     if (!ready || !mapRef.current) return;
-    rebuildMarkers(mapRef.current, showTeams, showShelters, setSelectedInfo);
+    rebuildMarkers(mapRef.current, teams, shelters, showTeams, showShelters, setSelectedInfo, markersRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, showTeams, showShelters]);
+
+  // -- Repaint when live data arrives ----------------------------------------
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const source = map.getSource("zones") as maplibregl.GeoJSONSource | undefined;
+    source?.setData(zoneGeoJson);
+  }, [zoneGeoJson, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    rebuildMarkers(map, teams, shelters, showTeams, showShelters, setSelectedInfo, markersRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teams, shelters, ready]);
 
   // -- Zone visibility toggle ------------------------------------------------
   useEffect(() => {
@@ -455,11 +457,11 @@ export default function NERMap() {
         setUserLocation({ lat, lng });
 
         // Check which zone user is in
-        const inZone = ZONES.find(z => pointInPolygon(lng, lat, z.coords));
+        const inZone = zones.find(z => pointInPolygon(lng, lat, z.coords));
         setUserZone(inZone || null);
 
         // Find nearest 3 shelters
-        const withDist = SHELTERS.map(s => ({ ...s, distance: haversine(lat, lng, s.lat, s.lng) }));
+        const withDist = shelters.map(s => ({ ...s, distance: haversine(lat, lng, s.lat, s.lng) }));
         withDist.sort((a, b) => a.distance - b.distance);
         setNearestShelters(withDist.slice(0, 3));
 
@@ -579,8 +581,8 @@ export default function NERMap() {
     map.once("style.load", () => {
       map.jumpTo({ center: ctr, zoom: z, pitch: p });
       addStateLayers(map);
-      addZoneLayers(map);
-      rebuildMarkers(map, showTeams, showShelters, setSelectedInfo);
+      addZoneLayers(map, zoneGeoJson);
+      rebuildMarkers(map, teams, shelters, showTeams, showShelters, setSelectedInfo, markersRef.current);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showTeams, showShelters]);
@@ -616,29 +618,14 @@ export default function NERMap() {
   };
 
   // --- Derived: active alert count ----------------------------------------
-  const activeAlerts = ZONES.filter(z => z.type === "ACTIVE_24H" || z.type === "ACTIVE_72H").length;
+  const activeAlerts = zones.filter(z => z.type === "ACTIVE_24H" || z.type === "ACTIVE_72H").length;
 
   return (
     <div className="relative w-full h-screen bg-[#0a0f1a] overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
 
       {/* == MAP CANVAS ====================================================== */}
-      {/* MapLibre canvas — hidden (but kept mounted) when ArcGIS is active so map state is preserved */}
-      <div ref={containerRef} className="absolute inset-0" style={{ visibility: mapEngine === "arcgis" ? "hidden" : "visible", pointerEvents: mapEngine === "arcgis" ? "none" : "auto" }} />
-
-      {/* == ARCGIS MAP ====================================================== */}
-      {mapEngine === "arcgis" && (
-        <div className="absolute inset-0" style={{ zIndex: 1 }}>
-          <Suspense fallback={
-            <div style={{ position: "absolute", inset: 0, background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", border: "2px solid rgba(0,121,193,0.3)", borderTopColor: "#0079C1", animation: "spin 1s linear infinite" }} />
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>Loading ArcGIS Map…</div>
-              <div style={{ fontSize: 11, color: "#475569" }}>Esri · NER Landslide Intelligence</div>
-            </div>
-          }>
-            <ArcGISNERMap />
-          </Suspense>
-        </div>
-      )}
+      {/* MapLibre canvas */}
+      <div ref={containerRef} className="absolute inset-0" />
 
       {/* = =  OFFLINE BANNER = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {isOffline && (
@@ -685,25 +672,12 @@ export default function NERMap() {
         <span style={{ fontSize: 11, fontWeight: 700, color: "#e2e8f0" }}>NE India Live Map</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#475569" }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", display: "inline-block", animation: "pulse 2s infinite" }} />
-          {activeAlerts} Active Alerts · 8 States · {ZONES.length} Zones
+          {activeAlerts} Active Alerts · 8 States · {zones.length} Zones
         </div>
         <div style={{ flex: 1 }} />
 
-        {/* ── Map engine toggle ── */}
-        <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-          {(["maplibre", "arcgis"] as const).map(eng => (
-            <button key={eng} onClick={() => setMapEngine(eng)} style={{
-              padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
-              background: mapEngine === eng ? (eng === "arcgis" ? "#0079C1" : "rgba(255,255,255,0.15)") : "transparent",
-              color: mapEngine === eng ? "#ffffff" : "#64748b", transition: "all 0.2s",
-            }}>
-              {eng === "maplibre" ? "MapLibre" : "ArcGIS 🌐"}
-            </button>
-          ))}
-        </div>
-
-        {/* Basemap pills — only shown in MapLibre mode */}
-        {mapEngine === "maplibre" && (
+        {/* Basemap pills */}
+        {(
           <div style={{ display: "flex", gap: 2, padding: 4, borderRadius: 10, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}>
             {BASEMAPS.map(bm => (
               <button key={bm.id} onClick={() => switchBasemap(bm)} style={{
@@ -812,7 +786,7 @@ export default function NERMap() {
                 </div>
                 {(Object.entries(ZONE_TYPES) as [ZoneKey, typeof ZONE_TYPES[ZoneKey]][]).map(([key, z]) => {
                   const active = visibleZones.has(key);
-                  const count = ZONES.filter(zn => zn.type === key).length;
+                  const count = zones.filter(zn => zn.type === key).length;
                   return (
                     <button key={key} onClick={() => toggleZoneType(key)} style={{
                       width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "7px 12px",
@@ -843,7 +817,7 @@ export default function NERMap() {
                 <div style={{ padding: "4px 12px 6px", fontSize: 9, fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>
                   Active &amp; Recent Events
                 </div>
-                {ZONES.filter(z => z.type === "ACTIVE_24H" || z.type === "ACTIVE_72H").map(z => (
+                {zones.filter(z => z.type === "ACTIVE_24H" || z.type === "ACTIVE_72H").map(z => (
                   <button key={z.id} onClick={() => {
                     const [lng, lat] = [(z.coords[0][0] + z.coords[2][0]) / 2, (z.coords[0][1] + z.coords[2][1]) / 2];
                     flyTo(lng, lat, 10);
@@ -864,13 +838,13 @@ export default function NERMap() {
               <div style={{ overflowY: "auto", flex: 1 }}>
                 <div style={{ padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    {RESCUE_TEAMS.length} Teams Registered
+                    {teams.length} Teams Registered
                   </span>
                   <button onClick={() => setShowTeams(p => !p)} style={{ fontSize: 9, color: showTeams ? "#ffffff" : "#475569", cursor: "pointer", border: "none", background: "transparent" }}>
                     {showTeams ? "Hide" : "Show"}
                   </button>
                 </div>
-                {RESCUE_TEAMS.map(t => (
+                {teams.map(t => (
                   <div key={t.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                     <button onClick={() => flyTo(t.lng, t.lat, 11)} style={{
                       width: "100%", display: "flex", alignItems: "flex-start", gap: 9, padding: "9px 12px",
@@ -908,7 +882,7 @@ export default function NERMap() {
               <div style={{ overflowY: "auto", flex: 1 }}>
                 <div style={{ padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>
-                    {SHELTERS.length} Safe Shelters
+                    {shelters.length} Safe Shelters
                   </span>
                   <button onClick={() => setShowShelters(p => !p)} style={{ fontSize: 9, color: showShelters ? "#ffffff" : "#475569", cursor: "pointer", border: "none", background: "transparent" }}>
                     {showShelters ? "Hide" : "Show"}
@@ -919,7 +893,7 @@ export default function NERMap() {
                     📍  Nearest to you
                   </div>
                 )}
-                {SHELTERS.map(s => {
+                {shelters.map(s => {
                   const nearestEntry = nearestShelters.find(n => n.id === s.id);
                   const avail = s.capacity - s.occupancy;
                   const pct = Math.round((s.occupancy / s.capacity) * 100);
@@ -1170,7 +1144,7 @@ export default function NERMap() {
       </div>
 
       {/* == LOADING (MapLibre only) =========================================== */}
-      {!ready && mapEngine === "maplibre" && (
+      {!ready && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000000" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             <div style={{ position: "relative", width: 64, height: 64 }}>
@@ -1180,7 +1154,7 @@ export default function NERMap() {
             </div>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc" }}>Loading NER Risk Map</div>
-              <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>CARTO Dark · OSM · {ZONES.length} Risk Zones</div>
+              <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>CARTO Dark · OSM · {zones.length} Risk Zones</div>
             </div>
           </div>
         </div>
@@ -1235,9 +1209,9 @@ function addStateLayers(map: maplibregl.Map) {
   }
 }
 
-function addZoneLayers(map: maplibregl.Map) {
+function addZoneLayers(map: maplibregl.Map, data: FeatureCollection) {
   if (!map.getSource("zones")) {
-    map.addSource("zones", { type: "geojson", data: ZONE_GEOJSON });
+    map.addSource("zones", { type: "geojson", data });
   }
   if (!map.getLayer("zone-fill")) {
     map.addLayer({
@@ -1259,12 +1233,20 @@ function addZoneLayers(map: maplibregl.Map) {
 
 function rebuildMarkers(
   map: maplibregl.Map,
+  teams: MapTeam[],
+  shelters: MapShelter[],
   showTeams: boolean,
   showShelters: boolean,
-  setSelectedInfo: (info: any) => void
+  setSelectedInfo: (info: any) => void,
+  store: maplibregl.Marker[],
 ) {
+  // Markers were previously created and never tracked, so every layer
+  // toggle left the old ones on the map. Clear the previous batch first.
+  store.forEach((m) => m.remove());
+  store.length = 0;
+
   if (showTeams) {
-    RESCUE_TEAMS.forEach(t => {
+    teams.forEach(t => {
       const el = document.createElement("div");
       el.style.cssText = `
         width:34px; height:34px; border-radius:50%; cursor:pointer;
@@ -1278,7 +1260,7 @@ function rebuildMarkers(
       el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.25)"; });
       el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
 
-      new maplibregl.Marker({ element: el })
+      const teamMarker = new maplibregl.Marker({ element: el })
         .setLngLat([t.lng, t.lat])
         .setPopup(new maplibregl.Popup({ offset: 20, closeButton: true, maxWidth: "240px" }).setHTML(`
           <div style="background:#0d1117;color:#e2e8f0;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);font-family:system-ui">
@@ -1296,11 +1278,12 @@ function rebuildMarkers(
           </div>
         `))
         .addTo(map);
+      store.push(teamMarker);
     });
   }
 
   if (showShelters) {
-    SHELTERS.forEach(s => {
+    shelters.forEach(s => {
       const pct = Math.round((s.occupancy / s.capacity) * 100);
       const avail = s.capacity - s.occupancy;
       const el = document.createElement("div");
@@ -1316,7 +1299,7 @@ function rebuildMarkers(
       el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.2)"; });
       el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
 
-      new maplibregl.Marker({ element: el })
+      const shelterMarker = new maplibregl.Marker({ element: el })
         .setLngLat([s.lng, s.lat])
         .setPopup(new maplibregl.Popup({ offset: 18, closeButton: true, maxWidth: "220px" }).setHTML(`
           <div style="background:#0d1117;color:#e2e8f0;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);font-family:system-ui">
@@ -1334,6 +1317,7 @@ function rebuildMarkers(
           </div>
         `))
         .addTo(map);
+      store.push(shelterMarker);
     });
   }
 }

@@ -33,12 +33,17 @@ export async function GET(request: NextRequest) {
   try {
     const admin = getAdmin();
 
-    // Look up the user_profiles table
+    // The column is `phone`, not `phone_number` — the old name silently
+    // matched nothing, so phone login could never succeed.
+    // Match on the E.164 form and on the bare 10-digit form, since profiles
+    // created through different paths stored it both ways.
+    const bare = phone.replace(/^\+91/, "");
     const { data, error } = await admin
       .from("user_profiles")
-      .select("id, full_name")
-      .eq("phone_number", phone)
-      .single();
+      .select("id, full_name, phone")
+      .or(`phone.eq.${phone},phone.eq.${bare}`)
+      .limit(1)
+      .maybeSingle();
 
     if (error || !data) {
       return NextResponse.json({ error: "No account found with this phone number" }, { status: 404 });

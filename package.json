@@ -2,19 +2,15 @@
   "name": "landguard-ner",
   "private": true,
   "version": "0.1.0",
-  "description": "AI-Based Landslide Early Warning & Risk Monitoring System — North East India",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "description": "AI-Based Landslide Early Warning & Risk Monitoring System \u2014 North East India (SIH 26001)",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "start": "turbo run start",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "db:migrate": "supabase db push",
-    "db:studio": "supabase studio",
-    "db:seed": "supabase db reset --db-url $SUPABASE_DB_URL"
+    "db:apply": "supabase db query --linked -f",
+    "db:score": "supabase db query --linked 'SELECT * FROM compute_risk_scores();'"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

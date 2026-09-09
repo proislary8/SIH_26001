@@ -13,8 +13,11 @@ interface SimResult {
   recommended_action: string;
 }
 
-// Hardcoded fallback zones — used when DB is empty or offline
-const FALLBACK_ZONES: RiskZone[] = [
+/** Only the fields the zone picker needs — not a full RiskZone row. */
+type ZoneOption = Pick<RiskZone, "id" | "name" | "district_id" | "base_risk_level">;
+
+// Fallback zones — used when the DB is empty or the device is offline.
+const FALLBACK_ZONES: ZoneOption[] = [
   { id: "fz1", name: "Dima Hasao — NH-27 Corridor (Assam)", district_id: "d1", base_risk_level: "high" },
   { id: "fz2", name: "Aizawl Western Ridge (Mizoram)", district_id: "d2", base_risk_level: "high" },
   { id: "fz3", name: "North Sikkim GLOF Zone", district_id: "d3", base_risk_level: "critical" },
@@ -82,7 +85,7 @@ export default function SimulatorPage() {
   }, []);
 
   // Fetch risk zones for dropdown — fallback to preset zones if empty
-  const { data: dbZones = [] } = useQuery<RiskZone[]>({
+  const { data: dbZones = [] } = useQuery<ZoneOption[]>({
     queryKey: ["risk-zones"],
     queryFn: async () => {
       try {
@@ -107,20 +110,20 @@ export default function SimulatorPage() {
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_PYTHON_API_URL || "http://127.0.0.1:8000";
-      const res = await fetch(`${apiUrl}/risk/scenario`, {
+      // Scored in-process by /api/risk/scenario (lib/risk/engine.ts) —
+      // no external service to keep alive.
+      const res = await fetch("/api/risk/scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           zone_id: zoneId,
-          district_id: selectedZone?.district_id ?? "",
           rainfall_scenario_mm: values.rainfall,
           rainfall_duration_h: values.duration,
           soil_moisture_pct: values.soilMoisture,
           slope_modifier: values.slopeModifier,
         }),
       });
-      if (!res.ok) throw new Error(`API Error ${res.status}`);
+      if (!res.ok) throw new Error(`Scenario failed (${res.status})`);
       setResult(await res.json());
     } catch (e: any) {
       // Simulate a plausible result for demo/offline mode

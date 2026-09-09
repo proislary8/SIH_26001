@@ -1,0 +1,54 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_R2_PUBLIC_URL",
+    "SUPABASE_SERVICE_KEY",
+    "CRON_SECRET",
+    "CLOUDFLARE_R2_ENDPOINT",
+    "CLOUDFLARE_R2_ACCESS_KEY",
+    "CLOUDFLARE_R2_SECRET_KEY",
+    "CLOUDFLARE_R2_BUCKET",
+    "FAST2SMS_API_KEY",
+    "TEXTBELT_KEY",
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_FROM_NUMBER",
+    "SARVAM_API_KEY",
+    "SARVAM_BASE_URL",
+    "SARVAM_CHAT_MODEL",
+    "SARVAM_TRANSLATE_MODEL"
+  ],
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "^lint"
+      ]
+    },
+    "type-check": {
+      "dependsOn": [
+        "^type-check"
+      ]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
