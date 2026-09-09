@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as maplibregl from "maplibre-gl";
+import { ensureMapLibreWorker } from "@/lib/map/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
 import type { FeatureCollection } from "geojson";
@@ -139,6 +140,48 @@ interface Zone {
  * the device is offline or the tables are empty, so the map still opens
  * and still shows shelters in a village with no signal.
  */
+/** Ring centroid, good enough for placing a marker on a small buffer. */
+function ringCentroid(coords: [number, number][]): [number, number] {
+  if (coords.length === 0) return [0, 0];
+  let x = 0;
+  let y = 0;
+  // Buffers repeat the first point as the last; drop it so it is not
+  // double-weighted.
+  const pts = coords.length > 1 &&
+    coords[0][0] === coords[coords.length - 1][0] &&
+    coords[0][1] === coords[coords.length - 1][1]
+      ? coords.slice(0, -1)
+      : coords;
+  for (const [lng, lat] of pts) { x += lng; y += lat; }
+  return [x / pts.length, y / pts.length];
+}
+
+/**
+ * Point layer for the zones.
+ *
+ * A MapLibre `circle` layer only draws point geometries, so the polygon
+ * source cannot carry the zoomed-out markers — the zones were rendering
+ * as sub-pixel polygons and vanishing entirely at region zoom.
+ */
+function buildZonePointGeoJSON(zones: MapZone[]): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: zones.map((z) => ({
+      type: "Feature" as const,
+      geometry: { type: "Point" as const, coordinates: ringCentroid(z.coords) },
+      properties: {
+        id: z.id, name: z.name, type: z.type, state: z.state,
+        pop_at_risk: z.pop_at_risk,
+        color: ZONE_TYPES[z.type].color,
+        severity: ZONE_TYPES[z.type].severity,
+        timestamp: z.timestamp || null,
+        rainfall_mm: z.rainfall_mm || null,
+        source: z.source || "GSI / NDMA",
+      },
+    })),
+  };
+}
+
 function buildZoneGeoJSON(zones: MapZone[]): FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -165,7 +208,7 @@ const HELPLINES = [
   { name: "NDMA", number: "1078", icon: "🆘" },
   { name: "NDRF", number: "011-23438252", icon: "🚑" },
   { name: "Police", number: "100", icon: "🚔" },
-  { name: "Ambulance", number: "108", icon: "ðŸ¥" },
+  { name: "Ambulance", number: "108", icon: "🏥" },
   { name: "Fire", number: "101", icon: "🚒" },
   { name: "Flood Control", number: "1800-345-3612", icon: "💧" },
 ];
@@ -203,24 +246,35 @@ function satelliteStyle(): maplibregl.StyleSpecification {
   };
 }
 
+// CARTO's basemaps.cartocdn.com tiles now return a "API KEY REQUIRED"
+// watermark baked into the image — the request still succeeds with HTTP
+// 200, so it fails silently and only shows up visually. Esri's Dark Gray
+// Canvas is keyless, free, and matches the dark UI.
 function darkStyle(): maplibregl.StyleSpecification {
   return {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     sources: {
-      carto_dark: {
+      esri_dark: {
         type: "raster",
-        tiles: [
-          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        ],
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],
         tileSize: 256,
-        attribution: "© CARTO © OpenStreetMap contributors",
-        maxzoom: 19,
+        attribution: "Esri, HERE, Garmin, OpenStreetMap contributors",
+        maxzoom: 16,
       },
     },
-    layers: [{ id: "dark-tiles", type: "raster", source: "carto_dark" }],
+    layers: [{
+      id: "dark-tiles",
+      type: "raster",
+      source: "esri_dark",
+      // Esri's canvas is lighter than the CARTO tiles it replaced; dim it
+      // so the hazard polygons stay the brightest thing on the map.
+      paint: {
+        "raster-brightness-max": 0.45,
+        "raster-saturation": -0.35,
+        "raster-contrast": 0.12,
+      },
+    }],
   };
 }
 
@@ -303,6 +357,7 @@ export default function NERMap() {
   const [isLiveData, setIsLiveData] = useState(false);
 
   const zoneGeoJson = useMemo(() => buildZoneGeoJSON(zones), [zones]);
+  const zonePointGeoJson = useMemo(() => buildZonePointGeoJSON(zones), [zones]);
 
   // Geo / alert state
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -352,6 +407,9 @@ export default function NERMap() {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    // Worker must be configured before the first map is constructed.
+    ensureMapLibreWorker(maplibregl);
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: BASEMAPS[0].style,  // dark (CARTO)
@@ -372,7 +430,7 @@ export default function NERMap() {
 
     map.on("load", () => {
       addStateLayers(map);
-      addZoneLayers(map, zoneGeoJson);
+      addZoneLayers(map, zoneGeoJson, zonePointGeoJson);
       setReady(true);
     });
 
@@ -421,9 +479,9 @@ export default function NERMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    const source = map.getSource("zones") as maplibregl.GeoJSONSource | undefined;
-    source?.setData(zoneGeoJson);
-  }, [zoneGeoJson, ready]);
+    (map.getSource("zones") as maplibregl.GeoJSONSource | undefined)?.setData(zoneGeoJson);
+    (map.getSource("zone-points") as maplibregl.GeoJSONSource | undefined)?.setData(zonePointGeoJson);
+  }, [zoneGeoJson, zonePointGeoJson, ready]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -438,12 +496,16 @@ export default function NERMap() {
     if (!map || !ready) return;
     try {
       const types = Array.from(visibleZones);
-      if (types.length === 0) {
-        map.setFilter("zone-fill", ["==", "type", "__none__"]);
-        map.setFilter("zone-outline", ["==", "type", "__none__"]);
-      } else {
-        map.setFilter("zone-fill", ["in", "type", ...types]);
-        map.setFilter("zone-outline", ["in", "type", ...types]);
+      // zone-dot must follow the same filter, or hiding a category from
+      // the legend would still leave its dots on the map.
+      const layers = ["zone-fill", "zone-outline", "zone-dot"];
+      const filter: maplibregl.FilterSpecification =
+        types.length === 0
+          ? ["==", "type", "__none__"]
+          : ["in", "type", ...types];
+
+      for (const layer of layers) {
+        if (map.getLayer(layer)) map.setFilter(layer, filter);
       }
     } catch { }
   }, [visibleZones, ready]);
@@ -481,9 +543,9 @@ export default function NERMap() {
             .setLngLat([lng, lat])
             .setPopup(new maplibregl.Popup({ offset: 20 }).setHTML(`
               <div style="background:#0d1117;color:#e2e8f0;padding:10px;border-radius:8px;font-family:system-ui;min-width:140px">
-                <div style="font-weight:700;margin-bottom:4px">📍 Your Location</div>
+                <div style="font-weight:700;margin-bottom:4px">📍 Your Location</div>
                 <div style="font-size:10px;color:#64748b">${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
-                ${inZone ? `<div style="margin-top:6px;padding:4px 8px;border-radius:4px;background:${ZONE_TYPES[inZone.type].color}33;color:${ZONE_TYPES[inZone.type].color};font-size:10px;font-weight:700">⚠️ You are in ${ZONE_TYPES[inZone.type].label}</div>` : `<div style="margin-top:6px;color:#22c55e;font-size:10px">✅ No active hazard</div>`}
+                ${inZone ? `<div style="margin-top:6px;padding:4px 8px;border-radius:4px;background:${ZONE_TYPES[inZone.type].color}33;color:${ZONE_TYPES[inZone.type].color};font-size:10px;font-weight:700">⚠️ You are in ${ZONE_TYPES[inZone.type].label}</div>` : `<div style="margin-top:6px;color:#22c55e;font-size:10px">✅ No active hazard</div>`}
               </div>
             `))
             .addTo(map);
@@ -581,7 +643,7 @@ export default function NERMap() {
     map.once("style.load", () => {
       map.jumpTo({ center: ctr, zoom: z, pitch: p });
       addStateLayers(map);
-      addZoneLayers(map, zoneGeoJson);
+      addZoneLayers(map, zoneGeoJson, zonePointGeoJson);
       rebuildMarkers(map, teams, shelters, showTeams, showShelters, setSelectedInfo, markersRef.current);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -624,8 +686,17 @@ export default function NERMap() {
     <div className="relative w-full h-screen bg-[#0a0f1a] overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
 
       {/* == MAP CANVAS ====================================================== */}
-      {/* MapLibre canvas */}
-      <div ref={containerRef} className="absolute inset-0" />
+      {/*
+        Positioned with inline styles, not Tailwind utilities.
+
+        Tailwind v4 emits utilities inside `@layer utilities`, and CSS
+        imported without a layer — maplibre-gl.css here — always wins over
+        layered rules regardless of specificity. MapLibre's own
+        `.maplibregl-map { position: relative }` therefore beat `absolute`,
+        the container collapsed to zero height, and the map rendered blank
+        with no console error.
+      */}
+      <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
 
       {/* = =  OFFLINE BANNER = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {isOffline && (
@@ -663,7 +734,7 @@ export default function NERMap() {
         borderBottom: "1px solid rgba(255,255,255,0.07)",
       }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <span style={{ fontSize: 20 }}>ðŸ ”ï¸ </span>
+          <span style={{ fontSize: 20 }} aria-hidden="true">🏔️</span>
           <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em", color: "#f8fafc" }}>
             LandGuard<span style={{ color: "#ffffff" }}>NER</span>
           </span>
@@ -740,7 +811,7 @@ export default function NERMap() {
                   borderBottom: activeTab === tab ? "2px solid #ffffff" : "2px solid transparent",
                   background: "transparent", color: activeTab === tab ? "#ffffff" : "#475569",
                 }}>
-                  {tab === "states" ? "🗺️ " : tab === "zones" ? "⚠️ " : tab === "teams" ? "🚑" : "ðŸ  "}
+                  {tab === "states" ? "🗺️ " : tab === "zones" ? "⚠️ " : tab === "teams" ? "🚑" : "🏠 "}
                 </button>
               ))}
             </div>
@@ -908,7 +979,7 @@ export default function NERMap() {
                         width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                         background: nearestEntry ? "rgba(34,197,94,0.2)" : "rgba(20,184,166,0.15)",
                         border: `1px solid ${nearestEntry ? "rgba(34,197,94,0.4)" : "rgba(20,184,166,0.3)"}`, fontSize: 12,
-                      }}>ðŸ  </div>
+                      }}>🏠 </div>
                       <div style={{ textAlign: "left", flex: 1 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: "#e2e8f0" }}>{s.name}</div>
                         <div style={{ fontSize: 9, color: "#475569" }}>
@@ -968,7 +1039,7 @@ export default function NERMap() {
           color: "#64748b", fontSize: 10, fontWeight: 700, padding: "5px 10px", cursor: "pointer",
           transition: "left 0.25s ease",
         }}>
-          ðŸ—’ï¸  Legend
+          🗒️ Legend
         </button>
       )}
 
@@ -1071,7 +1142,7 @@ export default function NERMap() {
           <div style={{ height: 3, background: "linear-gradient(90deg, #22c55e, #0891b2)" }} />
           <div style={{ padding: "10px 14px" }}>
             <div style={{ fontSize: 9, fontWeight: 800, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-              ðŸ   Nearest Safe Shelters
+              🏠  Nearest Safe Shelters
             </div>
             {nearestShelters.map((s, i) => (
               <div key={s.id} style={{ marginBottom: i < nearestShelters.length - 1 ? 8 : 0 }}>
@@ -1160,14 +1231,14 @@ export default function NERMap() {
         </div>
       )}
 
-      {/* == LOCATION DENIED NOTICE ========================================== */}
+      {/* == LOCATION DENIED NOTICE ========================================== */}
       {locationDenied && (
         <div style={{
           position: "absolute", bottom: 60, right: 12, zIndex: 15,
           background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)",
           borderRadius: 10, padding: "8px 14px", fontSize: 10, color: "#fbbf24", maxWidth: 200,
         }}>
-          ⚠️ Location access denied. Enable location for nearest shelter & auto-alerts.
+          ⚠️ Location access denied. Enable location for nearest shelter & auto-alerts.
         </div>
       )}
 
@@ -1209,9 +1280,16 @@ function addStateLayers(map: maplibregl.Map) {
   }
 }
 
-function addZoneLayers(map: maplibregl.Map, data: FeatureCollection) {
+function addZoneLayers(
+  map: maplibregl.Map,
+  data: FeatureCollection,
+  points: FeatureCollection,
+) {
   if (!map.getSource("zones")) {
     map.addSource("zones", { type: "geojson", data });
+  }
+  if (!map.getSource("zone-points")) {
+    map.addSource("zone-points", { type: "geojson", data: points });
   }
   if (!map.getLayer("zone-fill")) {
     map.addLayer({
@@ -1227,6 +1305,35 @@ function addZoneLayers(map: maplibregl.Map, data: FeatureCollection) {
       id: "zone-pulse", type: "line", source: "zones",
       filter: ["in", "type", "ACTIVE_24H", "ACTIVE_72H"],
       paint: { "line-color": ["get", "color"], "line-width": 6, "line-opacity": 0.35, "line-blur": 4 }
+    });
+
+    // Zone footprints are 4-6 km buffers, which at a region-wide zoom are
+    // roughly two pixels across — the hazards simply disappeared. This
+    // layer renders each zone as a proportional dot while zoomed out and
+    // fades away as the real polygons become legible.
+    map.addLayer({
+      id: "zone-dot",
+      type: "circle",
+      source: "zone-points",
+      paint: {
+        "circle-color": ["get", "color"],
+        "circle-radius": [
+          "interpolate", ["linear"], ["zoom"],
+          4, ["+", 4, ["*", 1.6, ["get", "severity"]]],
+          8, ["+", 7, ["*", 2.2, ["get", "severity"]]],
+          10, 0,
+        ],
+        "circle-opacity": [
+          "interpolate", ["linear"], ["zoom"],
+          4, 0.85,
+          8.5, 0.7,
+          9.5, 0,
+        ],
+        "circle-stroke-width": [
+          "interpolate", ["linear"], ["zoom"], 4, 1.5, 9, 0,
+        ],
+        "circle-stroke-color": "#0a0f1a",
+      },
     });
   }
 }
@@ -1294,7 +1401,7 @@ function rebuildMarkers(
         font-size:13px; box-shadow:0 3px 12px rgba(0,0,0,0.4);
         transition:transform 0.15s;
       `;
-      el.innerHTML = "ðŸ ";
+      el.innerHTML = "🏠 ";
       el.title = `${s.name} — ${avail} spots`;
       el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.2)"; });
       el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
@@ -1303,16 +1410,16 @@ function rebuildMarkers(
         .setLngLat([s.lng, s.lat])
         .setPopup(new maplibregl.Popup({ offset: 18, closeButton: true, maxWidth: "220px" }).setHTML(`
           <div style="background:#0d1117;color:#e2e8f0;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);font-family:system-ui">
-            <div style="font-weight:800;font-size:12px;margin-bottom:8px">ðŸ  ${s.name}</div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:2px">📍 ${s.city}, ${s.state}</div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:8px">ðŸ¥ ${s.type} · Cap: ${s.capacity.toLocaleString()}</div>
+            <div style="font-weight:800;font-size:12px;margin-bottom:8px">🏠  ${s.name}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:2px">📍 ${s.city}, ${s.state}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:8px">🏥 ${s.type} · Cap: ${s.capacity.toLocaleString()}</div>
             <div style="height:5px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-bottom:4px">
               <div style="height:100%;background:${pct > 80 ? "#ef4444" : pct > 50 ? "#f97316" : "#22c55e"};width:${pct}%;border-radius:4px"></div>
             </div>
             <div style="font-size:11px;font-weight:700;color:${avail > 50 ? "#22c55e" : "#f97316"};margin-bottom:10px">${avail.toLocaleString()} spots available</div>
             <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}" target="_blank" 
               style="display:block;padding:7px;border-radius:8px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px;font-weight:800;text-decoration:none;text-align:center">
-              🗺️ Get Directions
+              🗺️ Get Directions
             </a>
           </div>
         `))

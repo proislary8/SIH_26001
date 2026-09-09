@@ -400,7 +400,18 @@ export default function ShelterPage() {
                       ✓ {shelter.status}
                     </span>
                     <span style={{ fontSize: 11, color: "#64748b" }}>{shelter.state} · {shelter.district}</span>
-                    <span style={{ marginLeft: "auto", fontSize: 11, color: "#60a5fa", fontWeight: 600 }}>~{shelter.distance_km} km</span>
+                    {/* Only claim a distance when we actually have a fix.
+                        Without location every shelter fell back to 0 and the
+                        card read "~0 km", which is worse than saying nothing. */}
+                    {shelter.distance_km > 0 ? (
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: "#60a5fa", fontWeight: 600 }}>
+                        ~{shelter.distance_km} km
+                      </span>
+                    ) : (
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: "#475569", fontWeight: 600 }}>
+                        {locating ? "locating…" : "enable location for distance"}
+                      </span>
+                    )}
                   </div>
 
                   <h3 style={{ fontSize: 15, fontWeight: 800, color: "white", marginBottom: 5 }}>{shelter.name}</h3>

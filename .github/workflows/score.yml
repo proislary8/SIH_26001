@@ -1,12 +1,14 @@
 name: Risk scoring
 
-# Vercel's Hobby plan allows one cron run per day, which is too coarse for
-# a landslide early-warning system — the 72-hour rainfall window that
-# drives the score can cross a threshold in an afternoon.
+# OPTIONAL — not required for the app to work.
 #
-# GitHub Actions scheduled workflows are free and unmetered for public
-# repositories, so the hourly cadence lives here and the Vercel cron stays
-# as the daily guarantee. Both call the same endpoint.
+# Scores stay current without any scheduler: the dashboard calls
+# /api/risk/refresh on load and the server re-scores when the data is
+# stale. This workflow only matters if you want the numbers to keep
+# updating while nobody is looking at the dashboard.
+#
+# GitHub Actions scheduled workflows are free and unmetered on public
+# repositories, so this costs nothing to enable.
 #
 # Setup: add two repository secrets (Settings → Secrets → Actions)
 #   APP_URL      https://your-deployment.vercel.app

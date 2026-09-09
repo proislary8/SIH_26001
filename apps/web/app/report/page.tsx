@@ -8,13 +8,18 @@ import { drain, enqueue } from "@/lib/offline/queue";
 import { useI18n } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 
+/**
+ * Hazard types. Icons and values are fixed; the wording comes from the
+ * translation dictionary so the form reads in the citizen's own language —
+ * which is the whole point of a public reporting channel in the NER.
+ */
 const OBSERVATION_TYPES = [
-  { value: "slope_crack", label: "Slope Crack / Tension Fissure", icon: "🪨", desc: "Visible cracks or splits in a hillside or embankment" },
-  { value: "road_block", label: "Road Blocked by Debris / Mud", icon: "🚧", desc: "Road partially or fully blocked by soil, rocks, or fallen trees" },
-  { value: "rockfall", label: "Falling Rocks / Boulders", icon: "⛰️", desc: "Rocks or boulders rolling or fallen onto or near roads" },
-  { value: "water_seepage", label: "Unusual Water Seepage / Springs", icon: "💧", desc: "Water suddenly appearing from a hillside or slope" },
-  { value: "mudslide", label: "Active Mudslide / Debris Flow", icon: "🌊", desc: "Moving mass of mud, soil, or debris coming down a slope" },
-];
+  { value: "slope_crack",   icon: "🪨", labelKey: "obs.slope_crack",   descKey: "obs.slope_crack.desc" },
+  { value: "road_block",    icon: "🚧", labelKey: "obs.road_block",    descKey: "obs.road_block.desc" },
+  { value: "rockfall",      icon: "⛰️", labelKey: "obs.rockfall",      descKey: "obs.rockfall.desc" },
+  { value: "water_seepage", icon: "💧", labelKey: "obs.water_seepage", descKey: "obs.water_seepage.desc" },
+  { value: "mudslide",      icon: "🌊", labelKey: "obs.mudslide",      descKey: "obs.mudslide.desc" },
+] as const;
 
 const NE_DISTRICTS: Record<string, string[]> = {
   "Assam": ["Dima Hasao", "Cachar", "Kamrup", "Goalpara", "Bongaigaon", "Dhubri", "Karbi Anglong", "West Karbi Anglong"],
@@ -197,9 +202,9 @@ export default function ReportPage() {
   const selectedObsType = OBSERVATION_TYPES.find((o) => o.value === formData.observation_type);
 
   const STEPS = [
-    { num: 1, label: "What did you see?" },
-    { num: 2, label: "Where is it?" },
-    { num: 3, label: "Add photo & details" },
+    { num: 1, label: t("report.step1") },
+    { num: 2, label: t("report.step2") },
+    { num: 3, label: t("report.step3") },
   ];
 
   return (
@@ -224,7 +229,7 @@ export default function ReportPage() {
       }}>
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, color: "#94a3b8", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
-            <ArrowLeft size={16} /> Back to Home
+            <ArrowLeft size={16} /> {t("common.back")}
           </Link>
           <LanguageSwitcher compact />
         </div>
@@ -237,9 +242,9 @@ export default function ReportPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 14px", borderRadius: 100, background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.2)", color: "#fb923c", fontSize: 11, fontWeight: 700, marginBottom: 16 }}>
             <AlertTriangle size={12} /> Crowdsourced Hazard Intelligence
           </div>
-          <h1 style={{ fontSize: 30, fontWeight: 900, color: "white", marginBottom: 10, letterSpacing: "-0.02em" }}>Report a Hazard</h1>
+          <h1 style={{ fontSize: 30, fontWeight: 900, color: "white", marginBottom: 10, letterSpacing: "-0.02em" }}>{t("report.title")}</h1>
           <p style={{ fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>
-            Spotted something dangerous? Fill this quick form — takes about 2 minutes. Your report goes directly to local disaster authorities.
+            {t("report.subtitle")}
           </p>
         </div>
 
@@ -305,8 +310,8 @@ export default function ReportPage() {
               {/* Step 1: What did you see? */}
               {step === 1 && (
                 <div style={{ animation: "slideIn 0.25s ease" }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "white", marginBottom: 6 }}>Step 1 — What did you see?</div>
-                  <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>Choose the option that best describes what you witnessed</p>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "white", marginBottom: 6 }}>{t("report.step1")}</div>
+                  <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>{t("report.subtitle")}</p>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
                     {OBSERVATION_TYPES.map((o) => (
@@ -321,8 +326,8 @@ export default function ReportPage() {
                       >
                         <span style={{ fontSize: 26, flexShrink: 0 }}>{o.icon}</span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 3 }}>{o.label}</div>
-                          <div style={{ fontSize: 12, color: "#64748b" }}>{o.desc}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 3 }}>{t(o.labelKey)}</div>
+                          <div style={{ fontSize: 12, color: "#64748b" }}>{t(o.descKey)}</div>
                         </div>
                         <div style={{
                           width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
@@ -378,7 +383,7 @@ export default function ReportPage() {
               {/* Step 2: Where is it? */}
               {step === 2 && (
                 <div style={{ animation: "slideIn 0.25s ease" }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "white", marginBottom: 6 }}>Step 2 — Where is it?</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "white", marginBottom: 6 }}>{t("report.step2")}</div>
                   <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>Select your state and district, or tap to auto-detect your location</p>
 
                   {/* GPS Button — primary */}
@@ -463,7 +468,7 @@ export default function ReportPage() {
                   <div style={{ padding: "14px 18px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", marginBottom: 24 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Your Report Summary</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                      <div><span style={{ fontSize: 11, color: "#475569" }}>Type: </span><span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{selectedObsType?.icon} {selectedObsType?.label}</span></div>
+                      <div><span style={{ fontSize: 11, color: "#475569" }}>Type: </span><span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{selectedObsType?.icon} {selectedObsType ? t(selectedObsType.labelKey) : ""}</span></div>
                       <div><span style={{ fontSize: 11, color: "#475569" }}>Severity: </span><span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{formData.severity.charAt(0).toUpperCase() + formData.severity.slice(1)}</span></div>
                       <div><span style={{ fontSize: 11, color: "#475569" }}>Location: </span><span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{formData.district}, {formData.state}</span></div>
                       <div><span style={{ fontSize: 11, color: "#475569" }}>GPS: </span><span style={{ fontSize: 12, fontWeight: 700, color: "#e2e8f0" }}>{formData.lat}, {formData.lng}</span></div>

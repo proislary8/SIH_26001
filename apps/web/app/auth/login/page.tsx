@@ -217,14 +217,14 @@ function LoginForm() {
   };
 
   const FEATURES = [
-    { icon: "🗺️", text: "Live Risk Map — 8 NE States, 22 Risk Zones" },
+    { icon: "🗺️", text: "Live Risk Map — 8 NE States, 37 Risk Zones" },
     { icon: "📱", text: "Auto SMS Alerts to your registered phone" },
     { icon: "🆘", text: "One-Tap SOS to nearest NDRF/SDRF team" },
     { icon: "🏠", text: "Nearest Safe Shelter with directions" },
     { icon: "📵", text: "Offline-first — works without internet" },
     { icon: "🛰️", text: "Sentinel-1 SAR Change Detection" },
     { icon: "🌧️", text: "72-Hour Antecedent Rainfall Scoring" },
-    { icon: "🤖", text: "AI Multilingual Alerts (10+ NE languages)" },
+    { icon: "🤖", text: "AI Multilingual Alerts (8 NE languages)" },
   ];
 
   return (

@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
 
-// Derived from Next's own signature — `webpack` is bundled inside Next and
-// is not a declared dependency here, so importing its types directly fails.
-type WebpackConfig = Parameters<NonNullable<NextConfig["webpack"]>>[0];
-
 const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname, "../.."),
@@ -14,16 +10,9 @@ const nextConfig: NextConfig = {
       allowedOrigins: ["localhost:3000", "localhost:3001"],
     },
   },
-  webpack(config: WebpackConfig) {
-    // maplibre-gl v6 uses new URL(worker, import.meta.url) for Web Workers.
-    config.module = config.module ?? {};
-    config.module.rules = config.module.rules ?? [];
-    config.module.rules.push({
-      test: /maplibre-gl[/\\]dist[/\\].+worker\.js$/,
-      type: "asset/resource",
-    });
-    return config;
-  },
+  // No webpack() hook: Next 16 builds with Turbopack, so a webpack rule
+  // here would never run. The MapLibre worker is served from
+  // public/maplibre/ and wired up in lib/map/maplibre.ts instead.
 };
 
 export default nextConfig;

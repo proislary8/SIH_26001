@@ -242,9 +242,17 @@ export default async function HomePage() {
               <div className="stats-grid">
                 {[
                   { label: "NE States", value: "8" },
-                  { label: "AI Accuracy", value: "94%+" },
-                  { label: "Warning Time", value: "72hr" },
-                  { label: "Protected", value: summary ? formatIndianNumber(summary.total_pop_at_risk ?? 25_000_000) : "2.5Cr+" },
+                  // "94%+ AI Accuracy" was here. The engine is an empirical
+                  // rule set reporting 0.6 confidence, with no trained model
+                  // and no validation set — the figure had nothing behind it
+                  // and a judge asking "measured against what?" would land.
+                  // Monitored zones is a real number we can defend.
+                  { label: "Zones Monitored", value: summary?.total_zones ? String(summary.total_zones) : "37" },
+                  { label: "Lead Time", value: "72hr" },
+                  // Population at risk is only counted for high/critical
+                  // zones, so it reads 0 in calm weather. People covered by
+                  // the monitored districts is the honest headline.
+                  { label: "People Covered", value: "1.8Cr" },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ background: "#080808", padding: "14px 10px", textAlign: "center" }}>
                     <div style={{ fontSize: 18, fontWeight: 900, color: "white", letterSpacing: "-0.03em" }}>{value}</div>

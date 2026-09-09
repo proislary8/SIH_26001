@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LandGuard NER">
+  <title>LandGuard NER</title>
+  <!-- Shield: the "guard" half of the name. -->
+  <path d="M256 34 448 104v168c0 106-80 173-192 206C144 445 64 378 64 272V104L256 34Z"
+        fill="#0A0A0A" stroke="#FFFFFF" stroke-width="18" stroke-linejoin="round"/>
+  <!-- Ridge line: two peaks, the terrain being watched. -->
+  <path d="M120 330 205 208l58 78 42-58 87 102Z" fill="#FFFFFF"/>
+  <!-- Slip plane: the failure surface, cutting the near slope. -->
+  <path d="M150 330 214 244" stroke="#0A0A0A" stroke-width="14" stroke-linecap="round"/>
+  <!-- Sensor pulse over the ridge. -->
+  <circle cx="305" cy="150" r="20" fill="#FFFFFF"/>
+  <circle cx="305" cy="150" r="42" stroke="#FFFFFF" stroke-width="10" opacity="0.55"/>
+  <circle cx="305" cy="150" r="66" stroke="#FFFFFF" stroke-width="8" opacity="0.25"/>
+  <!-- Ground line. -->
+  <path d="M112 356h288" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+</svg>
