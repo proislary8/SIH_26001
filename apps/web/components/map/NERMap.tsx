@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
@@ -11,8 +11,11 @@ import {
   type MapZone, type MapShelter, type MapTeam,
 } from "@/lib/map/liveData";
 
-// ArcGIS — lazy loaded to avoid SSR issues and keep initial bundle small
-const ArcGISNERMap = lazy(() => import("@/components/map/ArcGISNERMap"));
+// The ArcGIS SDK was removed: 250 MB of Esri packages through
+// transpilePackages made the Vercel build unreliable, and it only powered
+// an optional second engine. MapLibre covers every feature this map needs,
+// and the satellite/topo basemaps below still come from ArcGIS Online tile
+// services — those are plain URLs and need no SDK.
 
 // --- NE State data ----------------------------------------------------------
 const NE_STATES = [
@@ -281,7 +284,6 @@ export default function NERMap() {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const nearestMarkerRef = useRef<maplibregl.Marker | null>(null);
 
-  const [mapEngine, setMapEngine] = useState<"maplibre" | "arcgis">("maplibre");
   const [ready, setReady] = useState(false);
   const [basemapId, setBasemapId] = useState("dark");
   const [is3D, setIs3D] = useState(false);
@@ -622,23 +624,8 @@ export default function NERMap() {
     <div className="relative w-full h-screen bg-[#0a0f1a] overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
 
       {/* == MAP CANVAS ====================================================== */}
-      {/* MapLibre canvas — hidden (but kept mounted) when ArcGIS is active so map state is preserved */}
-      <div ref={containerRef} className="absolute inset-0" style={{ visibility: mapEngine === "arcgis" ? "hidden" : "visible", pointerEvents: mapEngine === "arcgis" ? "none" : "auto" }} />
-
-      {/* == ARCGIS MAP ====================================================== */}
-      {mapEngine === "arcgis" && (
-        <div className="absolute inset-0" style={{ zIndex: 1 }}>
-          <Suspense fallback={
-            <div style={{ position: "absolute", inset: 0, background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", border: "2px solid rgba(0,121,193,0.3)", borderTopColor: "#0079C1", animation: "spin 1s linear infinite" }} />
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>Loading ArcGIS Map…</div>
-              <div style={{ fontSize: 11, color: "#475569" }}>Esri · NER Landslide Intelligence</div>
-            </div>
-          }>
-            <ArcGISNERMap />
-          </Suspense>
-        </div>
-      )}
+      {/* MapLibre canvas */}
+      <div ref={containerRef} className="absolute inset-0" />
 
       {/* = =  OFFLINE BANNER = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  */}
       {isOffline && (
@@ -689,21 +676,8 @@ export default function NERMap() {
         </div>
         <div style={{ flex: 1 }} />
 
-        {/* ── Map engine toggle ── */}
-        <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-          {(["maplibre", "arcgis"] as const).map(eng => (
-            <button key={eng} onClick={() => setMapEngine(eng)} style={{
-              padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
-              background: mapEngine === eng ? (eng === "arcgis" ? "#0079C1" : "rgba(255,255,255,0.15)") : "transparent",
-              color: mapEngine === eng ? "#ffffff" : "#64748b", transition: "all 0.2s",
-            }}>
-              {eng === "maplibre" ? "MapLibre" : "ArcGIS 🌐"}
-            </button>
-          ))}
-        </div>
-
-        {/* Basemap pills — only shown in MapLibre mode */}
-        {mapEngine === "maplibre" && (
+        {/* Basemap pills */}
+        {(
           <div style={{ display: "flex", gap: 2, padding: 4, borderRadius: 10, background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}>
             {BASEMAPS.map(bm => (
               <button key={bm.id} onClick={() => switchBasemap(bm)} style={{
@@ -1170,7 +1144,7 @@ export default function NERMap() {
       </div>
 
       {/* == LOADING (MapLibre only) =========================================== */}
-      {!ready && mapEngine === "maplibre" && (
+      {!ready && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000000" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             <div style={{ position: "relative", width: 64, height: 64 }}>

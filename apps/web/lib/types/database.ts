@@ -819,6 +819,11 @@ export type Database = {
       is_admin_or_above:  { Args: Record<string, never>; Returns: boolean };
       is_officer_or_above:{ Args: Record<string, never>; Returns: boolean };
       refresh_risk_view:  { Args: Record<string, never>; Returns: void };
+      /** Database-native scoring (migration 009) — the fallback tier. */
+      compute_risk_scores: {
+        Args: Record<string, never>;
+        Returns: { zones_scored: number; alerts_created: number }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

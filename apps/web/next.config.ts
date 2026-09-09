@@ -6,8 +6,6 @@ import path from "path";
 type WebpackConfig = Parameters<NonNullable<NextConfig["webpack"]>>[0];
 
 const nextConfig: NextConfig = {
-  // ArcGIS Core SDK uses ESM — must be transpiled for App Router
-  transpilePackages: ["@arcgis/core"],
   turbopack: {
     root: path.resolve(__dirname, "../.."),
   },
@@ -23,11 +21,6 @@ const nextConfig: NextConfig = {
     config.module.rules.push({
       test: /maplibre-gl[/\\]dist[/\\].+worker\.js$/,
       type: "asset/resource",
-    });
-    // ArcGIS Core: exclude from server bundle (client-only)
-    config.module.rules.push({
-      test: /@arcgis\/core/,
-      sideEffects: false,
     });
     return config;
   },

@@ -1,10 +1,15 @@
 "use client";
 /**
- * LiveSensorFeed — Real-time IoT sensor dashboard
- * Connects to Python FastAPI WebSocket /sensors/stream (or SSE fallback)
- * Shows live readings from 12 sensors across 8 NE states
+ * LiveSensorFeed — live IoT sensor readings.
+ *
+ * Previously held a WebSocket to the Python service, with an SSE fallback.
+ * Neither survives on serverless — Vercel functions cannot hold a socket
+ * open — so this now reads the sensors table directly and subscribes to
+ * sensor_readings over Supabase Realtime, which is a managed WebSocket
+ * that works fine from a static client.
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface SensorReading {
   sensor_id:   string;
@@ -33,9 +38,21 @@ const TYPE_ICONS: Record<string, string> = {
   pore_pressure:"⚡",
   displacement: "📏",
   rain_gauge:   "🌧️",
+  rainfall:     "🌧️",
+  groundwater:  "🌊",
+  temperature:  "🌡️",
 };
 
-const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL ?? "http://localhost:8000";
+/** Units and display labels per instrument type. */
+const TYPE_META: Record<string, { unit: string; label: string; threshold: number }> = {
+  rainfall:      { unit: "mm",    label: "Rain gauge",    threshold: 50 },
+  soil_moisture: { unit: "%",     label: "Soil moisture", threshold: 75 },
+  tiltmeter:     { unit: "deg",   label: "Tilt",          threshold: 2.5 },
+  pore_pressure: { unit: "kPa",   label: "Pore pressure", threshold: 65 },
+  displacement:  { unit: "mm",    label: "Displacement",  threshold: 20 },
+  groundwater:   { unit: "m",     label: "Groundwater",   threshold: 5 },
+  temperature:   { unit: "C",     label: "Temperature",   threshold: 40 },
+};
 
 function SparkBar({ value, threshold }: { value: number; threshold: number }) {
   const pct = Math.min((value / threshold) * 100, 100);
@@ -92,76 +109,103 @@ export default function LiveSensorFeed({ maxHeight = 480 }: { maxHeight?: number
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUp]   = useState<string | null>(null);
   const [filter, setFilter]       = useState<string>("all");
-  const wsRef = useRef<WebSocket | null>(null);
-  const esRef = useRef<EventSource | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const supabase = createClient();
+
+      // Instrument inventory plus its most recent reading. The reading is
+      // a left join so a sensor that has never reported still appears —
+      // an instrument that has gone silent is exactly what an officer
+      // needs to see, not a row that quietly vanishes.
+      const { data, error } = await supabase
+        .from("sensors")
+        .select("id, name, type, zone_id, last_seen_at, battery_pct, alert_threshold, risk_zones(name, ner_districts(ner_states(code)))")
+        .eq("is_active", true)
+        .order("last_seen_at", { ascending: false, nullsFirst: false })
+        .limit(60);
+
+      if (error) throw new Error(error.message);
+
+      const sensorIds = (data ?? []).map((r) => String(r.id));
+      const latest = new Map<string, { value: number; unit: string; recorded_at: string }>();
+
+      if (sensorIds.length > 0) {
+        const { data: readingRows } = await supabase
+          .from("sensor_readings")
+          .select("sensor_id, value, unit, recorded_at")
+          .in("sensor_id", sensorIds)
+          .order("recorded_at", { ascending: false })
+          .limit(600);
+
+        for (const row of readingRows ?? []) {
+          const key = String(row.sensor_id);
+          if (!latest.has(key)) {
+            latest.set(key, {
+              value: Number(row.value),
+              unit: String(row.unit),
+              recorded_at: String(row.recorded_at),
+            });
+          }
+        }
+      }
+
+      const mapped: SensorReading[] = (data ?? []).map((r) => {
+        const meta = TYPE_META[String(r.type)] ?? { unit: "", label: String(r.type), threshold: 100 };
+        const reading = latest.get(String(r.id));
+        const threshold = Number(r.alert_threshold ?? meta.threshold);
+        const value = reading?.value ?? 0;
+
+        const zone = (Array.isArray(r.risk_zones) ? r.risk_zones[0] : r.risk_zones) as
+          | { name?: string; ner_districts?: { ner_states?: { code?: string } | { code?: string }[] } | { ner_states?: { code?: string } | { code?: string }[] }[] }
+          | null;
+        const districtRel = Array.isArray(zone?.ner_districts) ? zone?.ner_districts[0] : zone?.ner_districts;
+        const stateRel = districtRel?.ner_states;
+        const stateCode = (Array.isArray(stateRel) ? stateRel[0]?.code : stateRel?.code) ?? "";
+
+        return {
+          sensor_id: String(r.id),
+          zone_id: String(r.zone_id ?? ""),
+          name: String(r.name),
+          type: String(r.type),
+          label: meta.label,
+          value,
+          unit: reading?.unit ?? meta.unit,
+          threshold,
+          alert: value >= threshold,
+          state: stateCode,
+          recorded_at: reading?.recorded_at ?? String(r.last_seen_at ?? ""),
+        };
+      });
+
+      setReadings(mapped);
+      setAlerts(mapped.filter((m) => m.alert).length);
+      setLastUp(new Date().toISOString());
+      setConnected(true);
+    } catch {
+      setConnected(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let retryTimer: ReturnType<typeof setTimeout>;
-    let usedSSE = false;
+    void load();
 
-    const connectWS = () => {
-      try {
-        const ws = new WebSocket(`${API_URL.replace("http", "ws")}/sensors/stream`);
-        ws.onopen  = () => setConnected(true);
-        ws.onclose = () => {
-          setConnected(false);
-          if (!usedSSE) {
-            // Try SSE fallback
-            connectSSE();
-            usedSSE = true;
-          }
-        };
-        ws.onerror = () => ws.close();
-        ws.onmessage = (e) => {
-          try {
-            const msg: StreamMessage = JSON.parse(e.data);
-            if (msg.type === "readings") {
-              setReadings(msg.data);
-              setAlerts(msg.alert_count);
-              setLastUp(msg.ts);
-            }
-          } catch {}
-        };
-        wsRef.current = ws;
-      } catch {
-        connectSSE();
-      }
-    };
+    const supabase = createClient();
+    const channel = supabase
+      .channel("sensor-feed")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "sensor_readings" }, () => void load())
+      .subscribe();
 
-    const connectSSE = () => {
-      try {
-        const es = new EventSource(`${API_URL}/sensors/stream/sse`);
-        es.onopen  = () => setConnected(true);
-        es.onerror = () => {
-          setConnected(false);
-          // Retry after 5s
-          retryTimer = setTimeout(connectSSE, 5000);
-        };
-        es.onmessage = (e) => {
-          try {
-            const msg: StreamMessage = JSON.parse(e.data);
-            if (msg.type === "readings") {
-              setReadings(msg.data);
-              setAlerts(msg.alert_count);
-              setLastUp(msg.ts);
-            }
-          } catch {}
-        };
-        esRef.current = es;
-      } catch {
-        // API not running — show placeholder
-        setConnected(false);
-      }
-    };
-
-    connectWS();
+    // Realtime carries new readings; this is the safety net for a dropped
+    // subscription, not the primary path — hence the slow interval.
+    pollRef.current = setInterval(() => void load(), 60_000);
 
     return () => {
-      wsRef.current?.close();
-      esRef.current?.close();
-      clearTimeout(retryTimer);
+      void supabase.removeChannel(channel);
+      if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, []);
+  }, [load]);
 
   const sensorTypes = ["all", ...Array.from(new Set(readings.map(r => r.type)))];
   const filtered    = filter === "all" ? readings : readings.filter(r => r.type === filter);
@@ -236,9 +280,12 @@ export default function LiveSensorFeed({ maxHeight = 480 }: { maxHeight?: number
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>📡</div>
-              <div style={{ fontSize: 13 }}>Python API offline</div>
-              <div style={{ fontSize: 11, marginTop: 4, color: "#3f3f46" }}>Start with: uvicorn main:app --reload (in apps/python-api)</div>
+              <div style={{ fontSize: 24, marginBottom: 8 }} aria-hidden="true">📡</div>
+              <div style={{ fontSize: 13 }}>No instruments reporting</div>
+              <div style={{ fontSize: 11, marginTop: 4, color: "#3f3f46", maxWidth: 320, margin: "4px auto 0", lineHeight: 1.5 }}>
+                Sensors are registered but none have sent a reading yet. Readings stream in over
+                Supabase Realtime as devices report.
+              </div>
             </div>
           )}
         </div>
