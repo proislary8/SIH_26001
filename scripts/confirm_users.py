@@ -1,7 +1,17 @@
+import os
 import urllib.request, json, urllib.error
 
-SUPABASE_URL = "https://wowxdiycayinzhxfbiaq.supabase.co"
-SERVICE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3hkaXljYXlpbnpoeGZiaWFxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODg1NTMzNywiZXhwIjoyMTA0NDMxMzM3fQ._f9lS7FcUdV7WhhlCVm9AFEsMmR2v6_cXj9hfoRYRgs"
+SUPABASE_URL  = os.environ.get("SUPABASE_URL", os.environ.get("NEXT_PUBLIC_SUPABASE_URL", ""))
+SERVICE_KEY   = os.environ.get("SUPABASE_SERVICE_KEY", "")
+
+if not SUPABASE_URL or not SERVICE_KEY:
+    raise SystemExit(
+        "Set SUPABASE_URL and SUPABASE_SERVICE_KEY in the environment before running this.\n"
+        "  export $(grep -v '^#' apps/web/.env.local | xargs)\n"
+        "These were previously hardcoded here and committed to git - rotate the key in the\n"
+        "Supabase dashboard if you have not already."
+    )
+
 HEADERS = {
     "apikey": SERVICE_KEY,
     "Authorization": "Bearer " + SERVICE_KEY,

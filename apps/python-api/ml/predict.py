@@ -41,7 +41,11 @@ FEATURE_ORDER = [
 class RiskPredictor:
     def __init__(self):
         self.model = None
-        self.zone_cache = {}  # zone_id → static features
+        # Reported on every score so a stored row says which engine produced
+        # it. "rules-v1" is not a worse answer than a model, but conflating
+        # the two would make the scores impossible to audit later.
+        self.model_version = "rules-v1"
+        self.zone_cache = {}  # zone_id -> static features
         self._load_model()
 
     def _load_model(self):
@@ -49,9 +53,14 @@ class RiskPredictor:
         if os.path.exists(model_path):
             with open(model_path, "rb") as f:
                 self.model = pickle.load(f)
-            logger.info("✅ Risk model loaded from disk")
+            self.model_version = "xgb-v1"
+            logger.info("Trained risk model loaded from %s", model_path)
         else:
-            logger.warning("⚠️  No trained model found — using rule-based fallback")
+            logger.warning(
+                "No trained model at %s - scoring with the empirical rule set "
+                "(rules-v1). This is the documented MVP path, not a failure.",
+                model_path,
+            )
             self.model = None
 
     def _get_zone_features(self, zone_id: str) -> dict:
@@ -142,7 +151,7 @@ class RiskPredictor:
 
         if self.model is not None:
             risk_score = float(self.model.predict_proba(features)[0][1])
-            confidence = 0.82  # from cross-validation
+            confidence = 0.82  # from cross-validation on the trained model
         else:
             # Rule-based fallback (for MVP before model is trained)
             risk_score = self._rule_based_score(

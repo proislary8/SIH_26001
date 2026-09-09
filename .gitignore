@@ -24,3 +24,6 @@ out/
 .DS_Store
 Thumbs.db
 *.log
+
+# Turborepo
+.turbo/

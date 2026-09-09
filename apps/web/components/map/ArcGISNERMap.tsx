@@ -226,13 +226,17 @@ export default function ArcGISNERMap({ apiKey }: Props) {
       const viewOptions = {
         container: containerRef.current,
         map,
-        center: [93.0, 25.8],
+        center: [93.0, 25.8] as [number, number],
         zoom: 6,
-        ui: { components: [] },  // remove defaults — add our own
+        // Empty tuple, not string[] — ui.components is typed ComponentName[].
+        ui: { components: [] as [] },  // remove defaults — add our own
       };
 
+      // tilt/heading are camera properties on SceneView, not view options.
+      // MapView/SceneView are dynamic imports, so they are values here, not
+      // types — the ref is `any` and infers fine without an annotation.
       const view = is3D
-        ? new SceneView({ ...viewOptions, tilt: 50, heading: 0 })
+        ? new SceneView({ ...viewOptions, camera: { tilt: 50, heading: 0 } })
         : new MapView(viewOptions);
 
       viewRef.current = view;
@@ -249,7 +253,7 @@ export default function ArcGISNERMap({ apiKey }: Props) {
       view.ui.add(search, "top-right");
 
       // Locate (GPS)
-      const locate = new Locate({ view, useHeadingEnabled: true, goToOverride: (_v: any, opt: any) => view.goTo(opt.target.map((t: any) => ({ center: t.geometry, zoom: 12 }))) });
+      const locate = new Locate({ view, goToOverride: (_v: any, opt: any) => view.goTo(opt.target.map((t: any) => ({ center: t.geometry, zoom: 12 }))) });
       view.ui.add(locate, "top-right");
 
       // Home
@@ -258,23 +262,28 @@ export default function ArcGISNERMap({ apiKey }: Props) {
       // Compass
       view.ui.add(new Compass({ view }), "top-right");
 
-      // Scale bar
-      view.ui.add(new ScaleBar({ view, unit: "metric", style: "ruler" }), "bottom-right");
+      // Scale bar — ArcGIS ScaleBar supports MapView only, so it is skipped
+      // in 3D. Adding it to a SceneView silently does nothing at runtime.
+      // `instanceof` (not the is3D flag) is what actually narrows the union
+      // for the ScaleBar constructor, which accepts a MapView only.
+      if (view instanceof MapView) {
+        view.ui.add(new ScaleBar({ view, unit: "metric", style: "ruler" }), "bottom-right");
+      }
 
       // Legend
       const legend = new Legend({ view, layerInfos: [{ layer: zoneLayer, title: "Risk Zones" }, { layer: shelterLayer, title: "Safe Shelters" }] });
-      const legendExpand = new Expand({ view, content: legend, expandIconClass: "esri-icon-legend", expandTooltip: "Zone Legend" });
+      const legendExpand = new Expand({ view, content: legend, expandIcon: "legend", expandTooltip: "Zone Legend" });
       view.ui.add(legendExpand, "bottom-left");
 
       // BasemapGallery
       const basemapGallery = new BasemapGallery({ view });
-      const basemapExpand  = new Expand({ view, content: basemapGallery, expandIconClass: "esri-icon-basemap", expandTooltip: "Change Basemap" });
+      const basemapExpand  = new Expand({ view, content: basemapGallery, expandIcon: "basemap", expandTooltip: "Change Basemap" });
       view.ui.add(basemapExpand, "top-left");
 
       // ElevationProfile (only in 2D + requires elevation ground)
       if (!is3D) {
         const elevProfile = new ElevationProfile({ view, profiles: [{ type: "ground" }], unit: "meters" });
-        const elevExpand  = new Expand({ view, content: elevProfile, expandIconClass: "esri-icon-chart", expandTooltip: "Elevation Profile" });
+        const elevExpand  = new Expand({ view, content: elevProfile, expandIcon: "graph-bar", expandTooltip: "Elevation Profile" });
         view.ui.add(elevExpand, "bottom-left");
       }
 

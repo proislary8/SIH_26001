@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { STATE_DEFAULT_LOCALE } from "@/lib/i18n/config";
 
 /** Raw admin client using service key — bypasses RLS & can confirm emails */
 function getAdminAuthClient() {
@@ -59,21 +60,44 @@ export async function POST(request: NextRequest) {
       // 1. Auto-confirm email so user can sign in immediately
       await adminAuth.auth.admin.updateUserById(data.user.id, { email_confirm: true });
 
-      // 2. Upsert user_profiles row with phone number for SMS alerts
-      await adminAuth
+      // 2. Upsert the profile.
+      //
+      // The columns here previously did not exist on user_profiles
+      // (`phone_number`, `state_code`, `sms_alerts_enabled`), so this
+      // upsert failed outright and no phone number was ever stored —
+      // which is why SMS dispatch always found zero recipients.
+      // The real columns are `phone`, `state_id` (a UUID) and
+      // `is_alert_subscriber` / `notify_sms`.
+      let stateId: string | null = null;
+      if (stateCode) {
+        const { data: stateRow } = await adminAuth
+          .from("ner_states")
+          .select("id")
+          .eq("code", stateCode)
+          .maybeSingle();
+        stateId = stateRow?.id ?? null;
+      }
+
+      const { error: profileError } = await adminAuth
         .from("user_profiles")
         .upsert(
           {
-            id:                data.user.id,
-            full_name:         fullName || email.split("@")[0],
-            role:              "citizen",
-            preferred_language: "en",
-            phone_number:      phone || null,
-            state_code:        stateCode || null,
-            sms_alerts_enabled: !!phone,
+            id:                 data.user.id,
+            full_name:          fullName || email.split("@")[0],
+            role:               "citizen",
+            // Default the UI and alert language to the state's main language.
+            preferred_language: STATE_DEFAULT_LOCALE[stateCode] ?? "en",
+            phone:              phone || null,
+            state_id:           stateId,
+            is_alert_subscriber: true,
+            notify_sms:         !!phone,
           },
           { onConflict: "id" }
         );
+
+      if (profileError) {
+        console.error("[auth] profile upsert failed:", profileError.message);
+      }
 
       // 3. If phone provided, send a welcome SMS to confirm number
       if (phone && process.env.TEXTBELT_KEY) {

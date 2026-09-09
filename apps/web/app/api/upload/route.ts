@@ -75,12 +75,20 @@ async function uploadToSupabase(
 // ── Main handler ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const file     = formData.get("file") as File | null;
-    const type     = (formData.get("type") as string) || "field_report";
-    const zoneId   = formData.get("zone_id") as string | null;
-    const lat      = formData.get("lat") as string | null;
-    const lng      = formData.get("lng") as string | null;
+    const formData   = await req.formData();
+    const file       = formData.get("file") as File | null;
+    const type       = (formData.get("type") as string) || "field_report";
+    const zoneIdRaw  = formData.get("zone_id") as string | null;
+    const lat        = formData.get("lat") as string | null;
+    const lng        = formData.get("lng") as string | null;
+    // Join key so submit_field_report() can adopt this photo once the
+    // report itself arrives — which may be much later, from the queue.
+    const clientUuid = formData.get("client_uuid") as string | null;
+
+    // zone_id is a UUID column; the report form used to send the literal
+    // string "z1" from the old hardcoded map, which would fail the insert.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const zoneId = zoneIdRaw && UUID_RE.test(zoneIdRaw) ? zoneIdRaw : null;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -101,12 +109,12 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer    = Buffer.from(await file.arrayBuffer());
-    const ext       = file.name.split(".").pop() ?? "jpg";
+    const ext       = (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
     const timestamp = Date.now();
-    const filename  = `${type}/${zoneId ?? "general"}/${timestamp}.${ext}`;
+    const filename  = `${type}/${zoneId ?? "general"}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     let publicUrl: string;
-    let storageBackend: string;
+    let storageBackend: "cloudflare_r2" | "supabase_storage";
 
     if (isR2Configured) {
       publicUrl      = await uploadToR2(buffer, filename, file.type);
@@ -116,10 +124,16 @@ export async function POST(req: NextRequest) {
       storageBackend = "supabase_storage";
     }
 
-    // Save metadata to DB
+    // Record the metadata. The upload itself has already succeeded, so a
+    // failure here must not fail the request — but it is logged rather
+    // than swallowed, which is how this went unnoticed before: the
+    // field_report_photos table did not exist and every insert was
+    // discarded by an empty catch block.
+    let metadataSaved = false;
     try {
       const supabase = await createClient();
-      await supabase.from("field_report_photos").insert({
+      const { error } = await supabase.from("field_report_photos").insert({
+        client_uuid:     clientUuid,
         filename,
         public_url:      publicUrl,
         storage_backend: storageBackend,
@@ -129,13 +143,22 @@ export async function POST(req: NextRequest) {
         lng:             lng ? parseFloat(lng) : null,
         file_size_bytes: file.size,
         mime_type:       file.type,
+        captured_at:     new Date().toISOString(),
       });
-    } catch { /* DB insert failure should not fail the upload */ }
+      if (error) {
+        console.error("[upload] photo metadata insert failed:", error.message);
+      } else {
+        metadataSaved = true;
+      }
+    } catch (e) {
+      console.error("[upload] photo metadata insert threw:", e);
+    }
 
     return NextResponse.json({
-      url:     publicUrl,
-      backend: storageBackend,
+      url:      publicUrl,
+      backend:  storageBackend,
       filename,
+      metadataSaved,
     });
 
   } catch (err: unknown) {

@@ -69,15 +69,22 @@ export async function POST(request: NextRequest) {
       // Get all registered users with SMS alerts enabled
       // (Only if latitude provided — fetch users in same state/region)
       try {
+        // Columns are `phone` / `is_alert_subscriber` / `notify_sms`.
+        // The previous names (`phone_number`, `sms_alerts_enabled`) do not
+        // exist, so this query silently returned zero recipients and every
+        // alert reported success while reaching nobody.
         const supabase = await createClient();
         const { data } = await supabase
           .from("user_profiles")
-          .select("phone_number")
-          .eq("sms_alerts_enabled", true)
-          .not("phone_number", "is", null);
-        phones = (data || []).map((u: any) => u.phone_number).filter(Boolean);
+          .select("phone")
+          .eq("is_alert_subscriber", true)
+          .eq("notify_sms", true)
+          .not("phone", "is", null);
+        phones = (data || [])
+          .map((u: { phone: string | null }) => u.phone?.trim())
+          .filter((p): p is string => !!p);
       } catch {
-        // Supabase unavailable — use override only
+        // Supabase unavailable — fall back to the override recipient only.
       }
     }
 

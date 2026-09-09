@@ -1,8 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Camera, MapPin, AlertTriangle, Upload, CheckCircle, ArrowLeft, Info } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { drain, enqueue } from "@/lib/offline/queue";
+import { useI18n } from "@/lib/i18n";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 
 const OBSERVATION_TYPES = [
   { value: "slope_crack", label: "Slope Crack / Tension Fissure", icon: "🪨", desc: "Visible cracks or splits in a hillside or embankment" },
@@ -23,7 +27,16 @@ const NE_DISTRICTS: Record<string, string[]> = {
   "Tripura": ["Dhalai", "Gomati", "Sepahijala", "West Tripura"],
 };
 
+interface DistrictOption {
+  id: string;
+  name: string;
+  state_name: string;
+  lat: number | null;
+  lng: number | null;
+}
+
 export default function ReportPage() {
+  const { t, locale } = useI18n();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     state: "Assam",
@@ -43,8 +56,49 @@ export default function ReportPage() {
   const [submitted, setSubmitted] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [queuedOffline, setQueuedOffline] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [dbDistricts, setDbDistricts] = useState<DistrictOption[]>([]);
 
-  const districts = NE_DISTRICTS[formData.state] || [];
+  // Districts come from the database so the picker matches the zones the
+  // risk engine actually scores. NE_DISTRICTS below is the offline
+  // fallback for a first visit with no connection.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("ner_districts")
+          .select("id, name, ner_states(name)")
+          .order("name");
+        if (cancelled || !data) return;
+        setDbDistricts(
+          data.map((d: { id: string; name: string; ner_states: { name: string } | { name: string }[] | null }) => ({
+            id: d.id,
+            name: d.name,
+            state_name: Array.isArray(d.ner_states)
+              ? (d.ner_states[0]?.name ?? "")
+              : (d.ner_states?.name ?? ""),
+            lat: null,
+            lng: null,
+          })),
+        );
+      } catch {
+        /* offline — the hardcoded fallback list stays in use */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const statesList = dbDistricts.length
+    ? Array.from(new Set(dbDistricts.map((d) => d.state_name))).filter(Boolean).sort()
+    : Object.keys(NE_DISTRICTS);
+
+  const districts = dbDistricts.length
+    ? dbDistricts.filter((d) => d.state_name === formData.state).map((d) => d.name)
+    : NE_DISTRICTS[formData.state] || [];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -56,53 +110,88 @@ export default function ReportPage() {
 
   const handleGetLocation = () => {
     setGpsLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setFormData((prev) => ({
-            ...prev,
-            lat: Number(pos.coords.latitude.toFixed(4)),
-            lng: Number(pos.coords.longitude.toFixed(4)),
-          }));
-          setGpsLoading(false);
-        },
-        () => {
-          setGpsLoading(false);
-        }
-      );
-    } else {
+    setUploadStatus(null);
+
+    if (!navigator.geolocation) {
       setGpsLoading(false);
+      setUploadStatus(t("report.locationDenied"));
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        // Six decimals ≈ 0.1 m. The old four-decimal rounding threw away
+        // ~11 m of precision, which matters when locating a specific slope.
+        setFormData((prev) => ({
+          ...prev,
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        }));
+        setAccuracy(pos.coords.accuracy ?? null);
+        setGpsLoading(false);
+        setUploadStatus(t("report.locationFound"));
+      },
+      () => {
+        setGpsLoading(false);
+        setUploadStatus(t("report.locationDenied"));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setUploadStatus("Uploading your report and photo...");
+    setSubmitError(null);
+    setUploadStatus(t("report.submitting"));
 
+    // Every report is written to the local queue first and sent second.
+    // That single path means the offline case is exercised on every
+    // submission rather than only when the network happens to be down,
+    // and a crash mid-send can never lose a citizen's report.
     try {
-      if (selectedFile) {
-        const uploadBody = new FormData();
-        uploadBody.append("file", selectedFile);
-        uploadBody.append("type", "field_report");
-        uploadBody.append("zone_id", "z1");
-        uploadBody.append("lat", String(formData.lat));
-        uploadBody.append("lng", String(formData.lng));
-
-        await fetch("/api/upload", {
-          method: "POST",
-          body: uploadBody,
-        });
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      await enqueue({
+        lat: formData.lat,
+        lng: formData.lng,
+        accuracy_m: accuracy,
+        report_type: formData.observation_type,
+        severity: formData.severity,
+        description: formData.description.trim(),
+        reporter_name: formData.reporter_name.trim() || null,
+        reporter_phone: formData.reporter_phone.trim() || null,
+        language: locale,
+        affects_road: ["road_block", "mudslide", "rockfall"].includes(formData.observation_type),
+        photo: selectedFile,
+        photo_name: selectedFile?.name ?? null,
+        captured_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      // The queue itself failed (private browsing blocks IndexedDB).
       setSubmitting(false);
-      setSubmitted(true);
-    } catch {
-      setSubmitting(false);
-      setUploadStatus("Saved to offline buffer — will sync when connected.");
-      setSubmitted(true);
+      setSubmitError(
+        err instanceof Error ? err.message : "Could not save the report on this device",
+      );
+      setUploadStatus(null);
+      return;
     }
+
+    if (!navigator.onLine) {
+      setSubmitting(false);
+      setQueuedOffline(true);
+      setSubmitted(true);
+      setUploadStatus(null);
+      return;
+    }
+
+    const { sent, failed } = await drain();
+    setSubmitting(false);
+    setSubmitted(true);
+    setQueuedOffline(sent === 0);
+    setUploadStatus(
+      failed > 0 && sent === 0
+        ? t("report.queuedHelp")
+        : null,
+    );
   };
 
   const selectedObsType = OBSERVATION_TYPES.find((o) => o.value === formData.observation_type);
@@ -137,10 +226,7 @@ export default function ReportPage() {
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, color: "#94a3b8", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
             <ArrowLeft size={16} /> Back to Home
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite" }} />
-            <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Offline-Ready · Works Without Internet</span>
-          </div>
+          <LanguageSwitcher compact />
         </div>
       </header>
 
@@ -160,17 +246,25 @@ export default function ReportPage() {
         {submitted ? (
           // Success screen
           <div style={{ textAlign: "center", padding: "60px 40px", borderRadius: 24, background: "#0b1329", border: "1px solid rgba(34,197,94,0.25)", animation: "successPop 0.4s ease" }}>
-            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(34,197,94,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
-              <CheckCircle size={36} style={{ color: "#22c55e" }} />
+            <div style={{
+              width: 72, height: 72, borderRadius: "50%",
+              background: queuedOffline ? "rgba(251,191,36,0.15)" : "rgba(34,197,94,0.15)",
+              display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px",
+            }}>
+              {queuedOffline
+                ? <Upload size={36} style={{ color: "#fbbf24" }} aria-hidden="true" />
+                : <CheckCircle size={36} style={{ color: "#22c55e" }} aria-hidden="true" />}
             </div>
-            <h2 style={{ fontSize: 26, fontWeight: 900, color: "white", marginBottom: 12 }}>Report Submitted! 🎉</h2>
-            <p style={{ fontSize: 14, color: "#94a3b8", maxWidth: 400, margin: "0 auto 8px", lineHeight: 1.7 }}>
-              Thank you for helping your community! Your report has been sent to local disaster control rooms and will be cross-checked against satellite data.
+            <h2 style={{ fontSize: 26, fontWeight: 900, color: "white", marginBottom: 12 }}>
+              {queuedOffline ? t("report.queued") : t("report.submitted")}
+            </h2>
+            <p style={{ fontSize: 14, color: "#94a3b8", maxWidth: 420, margin: "0 auto 8px", lineHeight: 1.7 }}>
+              {queuedOffline ? t("report.queuedHelp") : t("report.submittedHelp")}
             </p>
             {uploadStatus && <p style={{ fontSize: 12, color: "#fb923c", marginBottom: 24 }}>{uploadStatus}</p>}
             <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 32 }}>
               <button
-                onClick={() => { setSubmitted(false); setSelectedFile(null); setPreviewUrl(null); setStep(1); setUploadStatus(null); }}
+                onClick={() => { setSubmitted(false); setSelectedFile(null); setPreviewUrl(null); setStep(1); setUploadStatus(null); setQueuedOffline(false); setSubmitError(null); setAccuracy(null); }}
                 style={{ padding: "11px 22px", borderRadius: 100, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
               >
                 Submit Another Report
@@ -333,7 +427,7 @@ export default function ReportPage() {
                         onChange={(e) => setFormData({ ...formData, state: e.target.value, district: NE_DISTRICTS[e.target.value]?.[0] || "" })}
                         style={{ width: "100%", background: "#0a0f1d", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", fontSize: 14, color: "#e2e8f0", outline: "none" }}
                       >
-                        {Object.keys(NE_DISTRICTS).map((s) => <option key={s}>{s}</option>)}
+                        {statesList.map((st) => <option key={st}>{st}</option>)}
                       </select>
                     </div>
                     <div>
@@ -433,9 +527,24 @@ export default function ReportPage() {
                   </div>
 
                   {uploadStatus && (
-                    <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "rgba(251,146,60,0.08)", border: "1px solid rgba(251,146,60,0.2)", fontSize: 12, color: "#fb923c" }}>
+                    <div role="status" aria-live="polite" style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "rgba(251,146,60,0.08)", border: "1px solid rgba(251,146,60,0.2)", fontSize: 12, color: "#fb923c" }}>
                       {uploadStatus}
                     </div>
+                  )}
+
+                  {submitError && (
+                    <div role="alert" style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", fontSize: 12, color: "#f87171" }}>
+                      {submitError}
+                      <div style={{ marginTop: 6, color: "#fca5a5", fontSize: 11 }}>
+                        Call the district control room on 1077 if you cannot send this report.
+                      </div>
+                    </div>
+                  )}
+
+                  {accuracy !== null && (
+                    <p style={{ marginBottom: 12, fontSize: 11, color: "#64748b" }}>
+                      GPS accuracy: ±{Math.round(accuracy)} m
+                    </p>
                   )}
 
                   <div style={{ display: "flex", gap: 12 }}>

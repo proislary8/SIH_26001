@@ -4,13 +4,23 @@ Uses /pg/query endpoint which supports full DDL including triggers, extensions, 
 
 Usage: python run_migrations_direct.py
 """
+import os
 import urllib.request, urllib.error, json, re, sys
 from pathlib import Path
 
 # ── Config ─────────────────────────────────────────────────────────────────
-SUPABASE_URL  = "https://wowxdiycayinzhxfbiaq.supabase.co"
-PROJECT_REF   = "wowxdiycayinzhxfbiaq"
-SERVICE_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indvd3hkaXljYXlpbnpoeGZiaWFxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODg1NTMzNywiZXhwIjoyMTA0NDMxMzM3fQ._f9lS7FcUdV7WhhlCVm9AFEsMmR2v6_cXj9hfoRYRgs"
+SUPABASE_URL  = os.environ.get("SUPABASE_URL", os.environ.get("NEXT_PUBLIC_SUPABASE_URL", ""))
+PROJECT_REF   = SUPABASE_URL.replace("https://", "").split(".")[0]
+
+if not SUPABASE_URL or not SERVICE_KEY:
+    raise SystemExit(
+        "Set SUPABASE_URL and SUPABASE_SERVICE_KEY in the environment before running this.\n"
+        "  export $(grep -v '^#' apps/web/.env.local | xargs)\n"
+        "These were previously hardcoded here and committed to git - rotate the key in the\n"
+        "Supabase dashboard if you have not already."
+    )
+
+SERVICE_KEY   = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
 MIGRATIONS_DIR = Path(__file__).parent / "supabase" / "migrations"
 

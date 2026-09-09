@@ -125,15 +125,39 @@ async def run_scenario(req: ScenarioRequest):
 
 @router.get("/zones/{zone_id}/history")
 async def get_zone_risk_history(zone_id: str, hours: int = 72):
-    """Return risk score history for a zone"""
-    from db.client import supabase
-    result = supabase.table("risk_scores") \
-        .select("scored_at, risk_score, risk_level, confidence, trigger_factors") \
+    """Return risk score history for a zone."""
+    from datetime import datetime, timezone, timedelta
+    from db.client import get_supabase
+
+    # PostgREST compares against a literal, so the cutoff has to be computed
+    # here. The previous version passed the SQL string "now() - interval ..."
+    # straight through, which PostgREST treated as an opaque value - the
+    # filter never matched and the endpoint always returned an empty list.
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+    result = get_supabase().table("risk_scores") \
+        .select("scored_at, risk_score, risk_level, confidence, trigger_factors, model_version") \
         .eq("zone_id", zone_id) \
-        .gte("scored_at", f"now() - interval '{hours} hours'") \
+        .gte("scored_at", cutoff) \
         .order("scored_at", desc=True) \
         .execute()
     return result.data
+
+
+@router.post("/run-cycle")
+async def trigger_scoring_cycle(ingest_weather: bool = True):
+    """
+    Run one full ingest -> score -> alert pass now.
+
+    Same code path as the scheduled run, so triggering it by hand during a
+    demo exercises exactly what runs in production.
+    """
+    from jobs.run_scoring import run_cycle
+    try:
+        return await run_cycle(ingest_weather=ingest_weather)
+    except Exception as exc:
+        logger.error("Scoring cycle failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 def get_recommended_action(level: str) -> str:

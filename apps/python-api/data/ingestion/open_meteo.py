@@ -3,8 +3,10 @@ Open-Meteo Weather Ingestion
 Fetches real-time + forecast weather for all NER districts.
 Open-Meteo is 100% free, no API key required.
 """
-import httpx
 import asyncio
+import json
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from typing import Optional
 import logging
@@ -49,27 +51,44 @@ async def get_district_weather(district_id: str) -> dict:
     Fetch weather for a district by its database ID.
     Looks up coordinates from DB, then queries Open-Meteo.
     """
-    from db.client import supabase
+    from db.client import get_supabase
 
-    # Get district name to look up coordinates
+    supabase = get_supabase()
     result = supabase.table("ner_districts") \
-        .select("name") \
+        .select("name, centroid") \
         .eq("id", district_id) \
         .single() \
         .execute()
 
     if not result.data:
-        logger.warning(f"District {district_id} not found")
+        logger.warning("District %s not found", district_id)
         return _default_weather()
 
     district_name = result.data["name"]
-    coords = DISTRICT_COORDS.get(district_name)
+
+    # The seeded districts carry a real PostGIS centroid, so use that in
+    # preference to the hardcoded table below - it covers every district,
+    # not just the eighteen that were listed by hand.
+    coords = _coords_from_centroid(result.data.get("centroid"))
+    if coords is None:
+        coords = DISTRICT_COORDS.get(district_name)
 
     if not coords:
-        logger.warning(f"No coordinates for district: {district_name}")
+        logger.warning("No coordinates available for district: %s", district_name)
         return _default_weather()
 
     return await fetch_weather_for_coords(*coords)
+
+
+def _coords_from_centroid(centroid) -> Optional[tuple]:
+    """PostgREST returns a PostGIS point as GeoJSON: {type, coordinates:[lng,lat]}."""
+    if not centroid:
+        return None
+    try:
+        lng, lat = centroid["coordinates"][0], centroid["coordinates"][1]
+        return (float(lat), float(lng))
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
 
 
 async def fetch_weather_for_coords(lat: float, lng: float) -> dict:
@@ -95,12 +114,39 @@ async def fetch_weather_for_coords(lat: float, lng: float) -> dict:
         "timezone":      "Asia/Kolkata",
     }
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(OPEN_METEO_BASE, params=params)
-        resp.raise_for_status()
-        data = resp.json()
-
+    data = await _get_json(OPEN_METEO_BASE, params)
     return _parse_open_meteo(data)
+
+
+async def _get_json(url: str, params: dict) -> dict:
+    """
+    GET JSON, preferring httpx when it is installed.
+
+    Open-Meteo is the only outbound HTTP call the scoring pipeline makes,
+    so falling back to the stdlib means the whole engine runs on a bare
+    Python install - no wheels to build on a constrained machine.
+    """
+    try:
+        import httpx  # noqa: PLC0415
+
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(url, params=params)
+            resp.raise_for_status()
+            return resp.json()
+    except ImportError:
+        # urllib is blocking, so run it off the event loop.
+        flat = [
+            (k, ",".join(v) if isinstance(v, list) else str(v))
+            for k, v in params.items()
+        ]
+        full_url = f"{url}?{urllib.parse.urlencode(flat)}"
+
+        def _fetch() -> dict:
+            req = urllib.request.Request(full_url, headers={"User-Agent": "LandGuardNER/1.0"})
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+
+        return await asyncio.to_thread(_fetch)
 
 
 def _parse_open_meteo(data: dict) -> dict:
@@ -149,15 +195,16 @@ async def ingest_all_districts():
     Ingest weather for all NER districts and save to Supabase.
     Called hourly by Celery worker.
     """
-    from db.client import supabase
+    from db.client import get_supabase
 
+    supabase = get_supabase()
     districts = supabase.table("ner_districts") \
-        .select("id, name") \
+        .select("id, name, centroid") \
         .execute()
 
     tasks = []
-    for d in districts.data:
-        coords = DISTRICT_COORDS.get(d["name"])
+    for d in districts.data or []:
+        coords = _coords_from_centroid(d.get("centroid")) or DISTRICT_COORDS.get(d["name"])
         if coords:
             tasks.append(_ingest_district(d["id"], d["name"], coords))
 
@@ -168,7 +215,8 @@ async def ingest_all_districts():
 
 
 async def _ingest_district(district_id: str, name: str, coords: tuple):
-    from db.client import supabase
+    from db.client import get_supabase
+    supabase = get_supabase()
     weather = await fetch_weather_for_coords(*coords)
     supabase.table("weather_observations").insert({
         "district_id":             district_id,

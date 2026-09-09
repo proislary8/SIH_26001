@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 import path from "path";
-import type { Configuration } from "webpack";
+
+// Derived from Next's own signature — `webpack` is bundled inside Next and
+// is not a declared dependency here, so importing its types directly fails.
+type WebpackConfig = Parameters<NonNullable<NextConfig["webpack"]>>[0];
 
 const nextConfig: NextConfig = {
   // ArcGIS Core SDK uses ESM — must be transpiled for App Router
@@ -13,7 +16,7 @@ const nextConfig: NextConfig = {
       allowedOrigins: ["localhost:3000", "localhost:3001"],
     },
   },
-  webpack(config: Configuration) {
+  webpack(config: WebpackConfig) {
     // maplibre-gl v6 uses new URL(worker, import.meta.url) for Web Workers.
     config.module = config.module ?? {};
     config.module.rules = config.module.rules ?? [];
