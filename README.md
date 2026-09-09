@@ -176,6 +176,35 @@ opening the dashboard calls `/api/risk/refresh`, and the **server** decides whet
 anything is stale (default 60 min) before re-scoring. `.github/workflows/score.yml` is
 there, unused, if you want free hourly updates while nobody is watching.
 
+
+---
+
+## Deploying to Vercel
+
+**Root Directory must be `apps/web`** (Settings → General → Root Directory).
+
+This matters more than it looks: Vercel reads `vercel.json` from the **repository
+root**, but resolves the paths inside it against the **Root Directory**. Setting
+`outputDirectory` to `apps/web/.next` therefore produces `apps/web/apps/web/.next`
+and the deploy fails with `now-next-routes-manifest`. The path is `.next`, relative
+to `apps/web`.
+
+Environment variables to set (Settings → Environment Variables):
+
+```
+NEXT_PUBLIC_SUPABASE_URL        NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_KEY            CRON_SECRET
+SARVAM_API_KEY                  SARVAM_BASE_URL
+SARVAM_CHAT_MODEL               NEXT_PUBLIC_APP_URL
+```
+
+The full annotated list is in `apps/web/.env.example`.
+
+> `pnpm build` runs `prebuild`, which copies MapLibre's GeoJSON worker into
+> `public/maplibre/`. Turbopack does not emit that worker, and without it every
+> risk zone, road and boundary silently disappears from the maps while the
+> basemap still renders. The files are also committed as a fallback.
+
 ---
 
 ## Multilingual
