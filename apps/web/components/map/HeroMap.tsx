@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
+import { ensureMapLibreWorker } from "@/lib/map/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createClient } from "@/lib/supabase/client";
 import { riskLevelToColor } from "@/lib/utils";
@@ -18,23 +19,34 @@ export default function HeroMap({ mini = true }: Props) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    // Worker must be configured before the first map is constructed.
+    ensureMapLibreWorker(maplibregl);
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       // Free open-source basemap (no API key required)
       style: {
         version: 8,
         sources: {
-          "carto-dark": {
+          "esri-dark": {
             type: "raster",
-            tiles: [
-              "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-              "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-            ],
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],
             tileSize: 256,
-            attribution: "© OpenStreetMap © CARTO",
+            attribution: "Esri, HERE, Garmin, OpenStreetMap contributors",
           },
         },
-        layers: [{ id: "carto-dark-tiles", type: "raster", source: "carto-dark" }],
+        layers: [{
+          id: "esri-dark-tiles",
+          type: "raster",
+          source: "esri-dark",
+          // Esri's Dark Gray Canvas is lighter than the CARTO tiles it
+          // replaced; dim it so the risk polygons stay dominant.
+          paint: {
+            "raster-brightness-max": 0.45,
+            "raster-saturation": -0.35,
+            "raster-contrast": 0.12,
+          },
+        }],
       },
       // NER region center
       center:  [93.5, 25.8],
@@ -150,11 +162,15 @@ export default function HeroMap({ mini = true }: Props) {
 
   return (
     <div className="relative">
+      {/*
+        Sizing is inline rather than via Tailwind height utilities: in
+        Tailwind v4 the unlayered maplibre-gl.css overrides layered
+        utilities, which silently collapses the container to zero height.
+      */}
       <div
         ref={containerRef}
-        className={`rounded-2xl overflow-hidden border border-white/10 ${
-          mini ? "h-[420px] w-full" : "h-full w-full"
-        }`}
+        className="rounded-2xl overflow-hidden border border-white/10"
+        style={{ height: mini ? 420 : "100%", width: "100%", minHeight: mini ? 420 : 320 }}
       />
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 rounded-2xl">

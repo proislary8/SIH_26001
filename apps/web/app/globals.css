@@ -526,3 +526,12 @@ select:not(.tap-exempt) {
 .status-banner--offline { background: #1a1a1a; color: #fbbf24; }
 .status-banner--syncing { background: #0a0a0a; color: var(--text-secondary); }
 .status-banner--synced  { background: #0a0a0a; color: #4ade80; }
+
+/* ─── MapLibre containment ──────────────────────────────────────────────
+   maplibre-gl.css is imported unlayered, so under Tailwind v4 it outranks
+   every layered utility — `.maplibregl-map { position: relative }` silently
+   beat `absolute` and collapsed map containers to zero height. Components
+   now set position and size inline; this is the backstop so a map can
+   never render blank again. */
+.maplibregl-map { min-height: inherit; }
+.maplibregl-canvas-container, .maplibregl-canvas { width: 100%; height: 100%; }

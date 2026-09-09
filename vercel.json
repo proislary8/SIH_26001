@@ -4,11 +4,5 @@
   "installCommand": "pnpm install",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
-  "regions": ["bom1"],
-  "crons": [
-    {
-      "path": "/api/cron/score",
-      "schedule": "0 * * * *"
-    }
-  ]
+  "regions": ["bom1"]
 }

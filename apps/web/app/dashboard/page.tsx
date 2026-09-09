@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatIndianNumber, formatScore, timeAgo } from "@/lib/utils";
 import type { NERSummary, Alert, LatestRiskScore } from "@/lib/types/database";
 import Link from "next/link";
+import ScoreFreshness from "@/components/dashboard/ScoreFreshness";
 
 export const revalidate = 60;
 
@@ -30,7 +31,10 @@ export default async function DashboardOverview() {
   const [summaryRes, alertsRes, topRiskRes] = await Promise.all([
     supabase.rpc("get_ner_summary"),
     supabase.from("alerts").select("*").eq("is_active", true).order("issued_at", { ascending: false }).limit(8),
-    supabase.from("latest_risk_scores").select("*").in("risk_level", ["critical", "high"]).order("risk_score", { ascending: false }).limit(10),
+    // Top zones by score, not filtered to high/critical: the panel is
+    // "Highest Risk Zones", and hiding everything in calm weather made it
+    // useless exactly when an officer is checking whether things are calm.
+    supabase.from("latest_risk_scores").select("*").order("risk_score", { ascending: false }).limit(10),
   ]);
 
   const summary  = summaryRes.data as NERSummary | null;
@@ -50,7 +54,8 @@ export default async function DashboardOverview() {
       {/* Page title */}
       <div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: "white", marginBottom: 6, letterSpacing: "-0.02em" }}>NER Overview</h1>
-        <p style={{ fontSize: 13, color: "#52525b" }}>Real-time landslide risk summary for all 8 North Eastern states</p>
+        <p style={{ fontSize: 13, color: "#52525b", marginBottom: 6 }}>Live landslide risk across all 8 North Eastern states</p>
+        <ScoreFreshness lastUpdated={summary?.last_updated ?? null} />
       </div>
 
       {/* KPI Cards — pure B&W */}
@@ -123,7 +128,9 @@ export default async function DashboardOverview() {
           </div>
           <div>
             {topZones.length === 0 ? (
-              <p style={{ color: "#52525b", fontSize: 13, textAlign: "center", padding: "32px 20px" }}>No risk data yet</p>
+              <p style={{ color: "#52525b", fontSize: 13, textAlign: "center", padding: "32px 20px" }}>
+                No zones scored yet — the risk engine has not run.
+              </p>
             ) : (
               topZones.slice(0, 8).map((zone) => (
                 <div key={zone.zone_id} style={{

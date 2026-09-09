@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
+import { ensureMapLibreWorker } from "@/lib/map/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createClient } from "@/lib/supabase/client";
 import { riskLevelToColor, formatIndianNumber, formatScore, timeAgo } from "@/lib/utils";
@@ -55,24 +56,47 @@ const ROAD_COLOR: Record<string, string> = {
   blocked: "#ef4444",
 };
 
+// CARTO's basemaps.cartocdn.com tiles now return a "API KEY REQUIRED"
+// watermark baked into the image — the request still succeeds with HTTP
+// 200, so it fails silently and only shows up visually. Esri's Dark Gray
+// Canvas is keyless, free, and matches the dark UI.
 function darkStyle(): maplibregl.StyleSpecification {
   return {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     sources: {
-      carto_dark: {
+      esri_dark: {
         type: "raster",
-        tiles: [
-          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        ],
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],
         tileSize: 256,
-        attribution: "© CARTO © OpenStreetMap contributors",
-        maxzoom: 19,
+        attribution: "Esri, HERE, Garmin, OpenStreetMap contributors",
+        maxzoom: 16,
+      },
+      esri_labels: {
+        type: "raster",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256,
+        maxzoom: 16,
       },
     },
-    layers: [{ id: "carto_dark", type: "raster", source: "carto_dark" }],
+    layers: [
+      {
+        id: "esri_dark",
+        type: "raster",
+        source: "esri_dark",
+        paint: {
+          "raster-brightness-max": 0.45,
+          "raster-saturation": -0.35,
+          "raster-contrast": 0.12,
+        },
+      },
+      {
+        id: "esri_labels",
+        type: "raster",
+        source: "esri_labels",
+        paint: { "raster-opacity": 0.55 },
+      },
+    ],
   };
 }
 
@@ -192,6 +216,9 @@ export default function RiskMapLive({ height = "100%" }: { height?: string | num
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+
+    // Worker must be configured before the first map is constructed.
+    ensureMapLibreWorker(maplibregl);
 
     const map = new maplibregl.Map({
       container: containerRef.current,

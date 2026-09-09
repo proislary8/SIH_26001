@@ -1,0 +1,59 @@
+name: Risk scoring
+
+# OPTIONAL — not required for the app to work.
+#
+# Scores stay current without any scheduler: the dashboard calls
+# /api/risk/refresh on load and the server re-scores when the data is
+# stale. This workflow only matters if you want the numbers to keep
+# updating while nobody is looking at the dashboard.
+#
+# GitHub Actions scheduled workflows are free and unmetered on public
+# repositories, so this costs nothing to enable.
+#
+# Setup: add two repository secrets (Settings → Secrets → Actions)
+#   APP_URL      https://your-deployment.vercel.app
+#   CRON_SECRET  the same value set in the Vercel environment
+
+on:
+  schedule:
+    # Hourly. GitHub queues scheduled jobs under load, so treat the timing
+    # as approximate — this is a floor on freshness, not a guarantee.
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ingest weather and score every zone
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ] || [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::APP_URL and CRON_SECRET repository secrets are not set"
+            exit 1
+          fi
+
+          response=$(curl -sS --fail-with-body -m 120 \
+            -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/score")
+
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -1)
+
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Scoring failed with HTTP $status"
+            exit 1
+          fi
+
+          # Surface the run in the workflow summary rather than burying it
+          # in logs nobody opens.
+          {
+            echo "### Risk scoring"
+            echo ""
+            echo "\`\`\`json"
+            echo "$body"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
