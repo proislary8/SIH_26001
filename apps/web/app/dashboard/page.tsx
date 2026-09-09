@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatIndianNumber, formatScore, timeAgo } from "@/lib/utils";
 import type { NERSummary, Alert, LatestRiskScore } from "@/lib/types/database";
 import Link from "next/link";
+import ScoreFreshness from "@/components/dashboard/ScoreFreshness";
 
 export const revalidate = 60;
 
@@ -50,7 +51,8 @@ export default async function DashboardOverview() {
       {/* Page title */}
       <div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: "white", marginBottom: 6, letterSpacing: "-0.02em" }}>NER Overview</h1>
-        <p style={{ fontSize: 13, color: "#52525b" }}>Real-time landslide risk summary for all 8 North Eastern states</p>
+        <p style={{ fontSize: 13, color: "#52525b", marginBottom: 6 }}>Live landslide risk across all 8 North Eastern states</p>
+        <ScoreFreshness lastUpdated={summary?.last_updated ?? null} />
       </div>
 
       {/* KPI Cards — pure B&W */}
