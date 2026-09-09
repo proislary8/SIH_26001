@@ -13,8 +13,24 @@
 -- view over a DISTINCT ON is fast at this row count and is always current.
 -- ================================================================
 
-DROP MATERIALIZED VIEW IF EXISTS latest_risk_scores CASCADE;
-DROP VIEW IF EXISTS latest_risk_scores CASCADE;
+-- IF EXISTS guards against the object being absent, not against it being
+-- the wrong kind: running DROP MATERIALIZED VIEW against a plain view
+-- fails with 42809. On a re-run latest_risk_scores is already a view, so
+-- the drop has to be chosen from the catalogue.
+DO $$
+DECLARE v_kind "char";
+BEGIN
+  SELECT c.relkind INTO v_kind
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relname = 'latest_risk_scores';
+
+  IF v_kind = 'm' THEN
+    EXECUTE 'DROP MATERIALIZED VIEW latest_risk_scores CASCADE';
+  ELSIF v_kind = 'v' THEN
+    EXECUTE 'DROP VIEW latest_risk_scores CASCADE';
+  END IF;
+END $$;
 
 CREATE VIEW latest_risk_scores AS
   SELECT DISTINCT ON (rs.zone_id)
@@ -52,9 +68,14 @@ CREATE VIEW latest_risk_scores AS
   WHERE rz.is_active = TRUE
   ORDER BY rs.zone_id, rs.scored_at DESC;
 
--- Kept as a no-op so the existing Celery task keeps working.
-CREATE OR REPLACE FUNCTION refresh_risk_view()
-RETURNS void AS $$ SELECT NULL::void; $$ LANGUAGE SQL;
+-- There is deliberately no refresh_risk_view() here.
+--
+-- It existed as a no-op shim for the Celery task that used to refresh the
+-- materialized view. latest_risk_scores is now a plain view — always
+-- current, nothing to refresh — and the Python service that called it is
+-- gone. An earlier revision of this file created the shim above the drop
+-- block below, which then dropped it again; removing it outright is the
+-- honest version of that accident.
 
 -- ================================================================
 -- 2. HELPER FUNCTIONS
@@ -76,7 +97,7 @@ BEGIN
         'get_ner_summary', 'get_district_risk_summary', 'get_response_priority',
         'get_road_connectivity_summary', 'get_weather_risk_forecast',
         'get_nearest_shelters', 'get_nearest_rescue_teams', 'get_zones_near_point',
-        'submit_field_report', 'set_road_status', 'refresh_risk_view',
+        'submit_field_report', 'set_road_status', 'refresh_risk_view',  -- legacy, no longer created
         'get_my_role', 'is_admin_or_above', 'is_officer_or_above',
         'get_alerts_near_point', 'get_risk_zones_in_bbox'
       )

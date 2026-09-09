@@ -818,7 +818,6 @@ export type Database = {
       get_my_role:        { Args: Record<string, never>; Returns: UserRole | null };
       is_admin_or_above:  { Args: Record<string, never>; Returns: boolean };
       is_officer_or_above:{ Args: Record<string, never>; Returns: boolean };
-      refresh_risk_view:  { Args: Record<string, never>; Returns: void };
       /** Database-native scoring (migration 009) — the fallback tier. */
       compute_risk_scores: {
         Args: Record<string, never>;
