@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatScore, getRiskBadgeClass, riskEmoji } from "@/lib/utils";
@@ -70,11 +70,16 @@ const SLIDER_CONFIG = [
 ];
 
 export default function SimulatorPage() {
+  const [mounted, setMounted] = useState(false);
   const [zoneId, setZoneId] = useState<string>("");
   const [values, setValues] = useState({ rainfall: 80, duration: 24, soilMoisture: 60, slopeModifier: 1.0 });
   const [result, setResult] = useState<SimResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch risk zones for dropdown — fallback to preset zones if empty
   const { data: dbZones = [] } = useQuery<RiskZone[]>({
@@ -94,7 +99,7 @@ export default function SimulatorPage() {
     },
   });
 
-  const zones = dbZones.length > 0 ? dbZones : FALLBACK_ZONES;
+  const zones = (mounted && dbZones.length > 0) ? dbZones : FALLBACK_ZONES;
   const selectedZone = zones.find((z) => z.id === zoneId);
 
   const runScenario = useCallback(async () => {
@@ -155,7 +160,7 @@ export default function SimulatorPage() {
   };
 
   return (
-    <div style={{ maxWidth: 1000, display: "flex", flexDirection: "column", gap: 24 }}>
+    <div className="space-y-6" style={{ maxWidth: 1000, display: "flex", flexDirection: "column", gap: 24 }}>
 
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -197,7 +202,7 @@ export default function SimulatorPage() {
                 <option key={z.id} value={z.id}>{z.name}</option>
               ))}
             </select>
-            {dbZones.length === 0 && (
+            {mounted && dbZones.length === 0 && (
               <div style={{ marginTop: 6, fontSize: 11, color: "#475569" }}>
                 Using preset demo zones (DB not connected)
               </div>
